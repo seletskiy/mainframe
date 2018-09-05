@@ -7,7 +7,7 @@ cursor around to display text in different parts of screen. Text that displayed
 on screen is not separated by control characters and `cat`-ing binary file will
 corrupt that kind of terminals.
 
-![Grand Scheme](diagram.png)
+<p align="center"><img src="diagram.png"></p>
 
 `mainframe` proposes different design. Terminal can be controlled via
 unix-socket and multiple clients can control what is displayed on the screen
