@@ -4,12 +4,6 @@ Protocol is:
 * full-duplex
 * request-response.
 
-## Legend
-
-* `[x]` — `x` or nothing.
-* `(x|y)` — `x` or `y`.
-* `([x] [y])` — `x` or `y` or `x y`.
-
 ## Format
 
 * Protocol is line oriented: messages are separated by `\n`.
@@ -31,6 +25,12 @@ All successfull responses will contain `tick: 123` which specify tick on
 which response was generated.
 
 All error messages will be in form `err msg: "text"`.
+
+## Legend
+
+* `[x]` — `x` or nothing.
+* `(x|y)` — `x` or `y`.
+* `([x] [y])` — `x` or `y` or `x y`.
 
 ## `client` → `server`
 
@@ -72,7 +72,7 @@ put x: 1 y: 2 [width: 80] [height: 20] ([fg: #ff0] [bg: #f00] [text: "text strin
   will be wrapped to subsequent lines when single line will exceed given `width`;
 * if only `width` is given, `height` is assumed to be `1`;
 * if only `height` is given, `width` is assumed to be `1`;
-* if `width` and `height` is not specified, then `height is assumed to be `1`
+* if `width` and `height` is not specified, then `height` is assumed to be `1`
   and `width` to be equal to length of given `text`; if `text` is not given,
   then `put` will only change single specified cell;
 
@@ -111,7 +111,7 @@ subscribe ([key] [resize])
 event tick: 123 kind: ("keyup"|"keydown"|"keypress") key: "x" [shift] [alt] [ctrl]
 ```
 
-## `resize` event
+### `resize` event
 
 ```
 event tick: 123 kind: "resize" width: 80 height: 20
