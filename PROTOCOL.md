@@ -19,12 +19,19 @@ Protocol is:
 
 ## General
 
-All successfull responses will start from `ok`.
+All messages from server prefixed to ease parsing:
 
-All successfull responses will contain `tick: 123` which specify tick on
+* `=` for responses to commands;
+* `!` for events;
+* `#` for errors;
+
+All successfull responses for commands that does not return value start from
+`=ok`.
+
+All successfull responses contain `tick: 123` which specify tick on
 which response was generated.
 
-All error messages will be in form `err msg: "text"`.
+All error messages will be in form `#err msg: "text"`.
 
 ## Legend
 
@@ -49,7 +56,7 @@ clear [x: 1 y: 2 [width: 80] [height: 20]]
 #### Response
 
 ```
-ok [offscreen]
+=ok [offscreen]
 ```
 
 * `offscreen` flag will be in response if request attempts to clear cells
@@ -79,11 +86,11 @@ put x: 1 y: 2 [width: 80] [height: 20] ([fg: #ff0] [bg: #f00] [text: "text strin
 #### Response
 
 ```
-ok tick: 123 [offscreen] [overflow]
+=ok tick: 123 [offscreen] [overflow]
 ```
 
-* `offscreen` flag will be in response if request attempts to clear cells
-   outside of screen;
+* `offscreen` flag will be in response if request attempts to modify cells
+  outside of screen;
 * `overflow` flag will be in response if given `text` can't be fit in specified
   area;
 
@@ -92,27 +99,27 @@ ok tick: 123 [offscreen] [overflow]
 Format:
 
 ```
-subscribe ([key] [resize])
+subscribe ([keyboard] [resize])
 ```
 
-* `key` subscription will allow to receive `keyup`, `keydown` and `keypress`
-  events;
+* `keyboard` subscription will allow to receive `keyup`, `keydown` and
+  `keypress` events;
 * `resize` will allow to receive window size change events;
 * after subscription it is still possible to send other commands;
 * see next section for list of events that server will send back to client;
 
 ## `server` → `client`
 
-### `key` events
+### `keyboard` events
 
 ### Format
 
 ```
-event tick: 123 kind: ("keyup"|"keydown"|"keypress") key: "x" [shift] [alt] [ctrl]
+!event tick: 123 kind: ("keyup"|"keydown"|"keypress") key: "x" [shift] [alt] [ctrl]
 ```
 
 ### `resize` event
 
 ```
-event tick: 123 kind: "resize" width: 80 height: 20
+!event tick: 123 kind: "resize" width: 80 height: 20
 ```
