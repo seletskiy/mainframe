@@ -45,6 +45,8 @@ type Engine struct {
 		barrier  chan struct{}
 		callback func()
 	}
+
+	running bool
 }
 
 func New(log lorg.Logger) *Engine {
@@ -79,6 +81,8 @@ func (engine *Engine) Init() error {
 			"{glfw} unable to init",
 		)
 	}
+
+	engine.running = true
 
 	return nil
 }
@@ -140,6 +144,10 @@ func (engine *Engine) CreateWindow(
 	return context, nil
 }
 
+func (engine *Engine) Running() bool {
+	return engine.running
+}
+
 func (engine *Engine) Render() error {
 	// When there are nothing to draw, we just wait for new window to create.
 	if len(engine.contexts.handles) == 0 {
@@ -180,7 +188,10 @@ func (engine *Engine) SetFont(font *fonts.Font) {
 }
 
 func (engine *Engine) Stop() {
-	glfw.Terminate()
+	engine.delegate(func() {
+		glfw.Terminate()
+		engine.running = false
+	})
 }
 
 func (engine *Engine) GetContext(handle uint32) *Context {

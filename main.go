@@ -77,43 +77,36 @@ func listen(opts Opts) {
 
 	engine := engine.New(log)
 
-	defer engine.Stop()
-
 	listener, err := protocol.Listen(opts.Socket, engine, log)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer listener.Close()
-
 	engine.SetFont(font)
 
-	go func() {
-		err := engine.Init()
+	go sign.Notify(
+		func(os.Signal) bool {
+			listener.Close()
+			engine.Stop()
+
+			return false
+		},
+		syscall.SIGINT,
+		syscall.SIGKILL,
+		syscall.SIGTERM,
+	)
+
+	err = engine.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for engine.Running() {
+		err := engine.Render()
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		for {
-			err := engine.Render()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-	}()
-
-	sign.Notify(
-		func(os.Signal) bool {
-			listener.Close()
-
-			os.Exit(0)
-
-			return true
-		},
-		os.Interrupt,
-		os.Kill,
-		syscall.SIGTERM,
-	)
+	}
 }
 
 func execute(opts Opts) {
