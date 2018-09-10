@@ -1,4 +1,4 @@
-package protocol
+package server
 
 import (
 	"net"
@@ -67,7 +67,7 @@ func (listener *Listener) accept() {
 			continue
 		}
 
-		context, err := listener.engine.CreateWindow(600, 600, "123")
+		context, err := listener.engine.CreateWindow(640, 480, "mainframe")
 		if err != nil {
 			log.Error(
 				karma.Format(err, "unable to create window").Error(),

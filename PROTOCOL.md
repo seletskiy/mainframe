@@ -7,8 +7,8 @@ Protocol is:
 ## Format
 
 * Protocol is line oriented: messages are separated by `\n`.
-* Message consists of message name followed by optional body.
-* Message name consists of `[a-z_]`.
+* Message consists of message tag followed by optional body.
+* Message tag consists of `[a-z_]`.
 * Message body consist of white-space delimited key or key-value pairs.
 * Keys consists of `[a-z_]`.
 * Key-value pairs delimited with `:`.

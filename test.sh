@@ -1,3 +1,4 @@
-while :; do
-    echo "TEXT 1 1 hello shell script: $(date -Ins)"
-done >&3
+{
+    echo "put x: 1 y: 2 text: \"$(date -Ins)\""
+    sleep 1000
+} >&3

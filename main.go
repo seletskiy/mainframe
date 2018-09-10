@@ -11,7 +11,7 @@ import (
 	"github.com/reconquest/sign-go"
 	"github.com/seletskiy/mainframe/engine"
 	"github.com/seletskiy/mainframe/fonts"
-	"github.com/seletskiy/mainframe/protocol"
+	"github.com/seletskiy/mainframe/server"
 )
 
 var version = "1.0"
@@ -77,7 +77,7 @@ func listen(opts Opts) {
 
 	engine := engine.New(log)
 
-	listener, err := protocol.Listen(opts.Socket, engine, log)
+	listener, err := server.Listen(opts.Socket, engine, log)
 	if err != nil {
 		log.Fatal(err)
 	}
