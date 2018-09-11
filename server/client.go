@@ -21,15 +21,15 @@ func (client *Client) serve() {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		tag, message, err := text.Parse(line)
+		message, err := text.Parse(line)
 		if err != nil {
 			panic(err)
 		}
 
-		switch tag {
+		switch message.Tag() {
 		case "put":
 			message := message.(*messages.Put)
-			client.context.Screen.SetText(message.X, message.Y, *message.Text)
+			client.context.Screen.Put(message)
 		}
 	}
 

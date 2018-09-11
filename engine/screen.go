@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/seletskiy/mainframe/fonts"
+	"github.com/seletskiy/mainframe/protocol/messages"
 )
 
 type Screen struct {
@@ -51,8 +52,11 @@ func (screen *Screen) SetGlyph(x, y int, char string) bool {
 	return true
 }
 
-func (screen *Screen) SetText(x, y int, text string) bool {
-	for _, char := range text {
+func (screen *Screen) Put(message *messages.Put) bool {
+	x := message.X
+	y := message.Y
+
+	for _, char := range *message.Text {
 		if !screen.SetGlyph(x, y, string(char)) {
 			return false
 		}

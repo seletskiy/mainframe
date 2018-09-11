@@ -18,3 +18,7 @@ type Put struct {
 	Tick      *int
 	Exclusive *bool
 }
+
+func (put *Put) Tag() string {
+	return "put"
+}

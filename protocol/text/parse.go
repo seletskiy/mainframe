@@ -5,9 +5,11 @@ import (
 	"image/color"
 	"strconv"
 	"strings"
+
+	"github.com/seletskiy/mainframe/protocol/messages"
 )
 
-func Parse(data string) (string, interface{}, error) {
+func Parse(data string) (messages.Tagged, error) {
 	var (
 		tag  string
 		args = map[string]interface{}{}
@@ -40,19 +42,27 @@ func Parse(data string) (string, interface{}, error) {
 			args[token["key"]] = value
 
 		case token["garbage"] != "":
-			return "", nil, fmt.Errorf(
+			return nil, fmt.Errorf(
 				`unexpected token: %q`,
 				token["garbage"],
 			)
 		}
 	}
 
-	message, err := parsePutMessage(args)
-	if err != nil {
-		return "", nil, err
+	var (
+		message messages.Tagged
+		err     error
+	)
+
+	switch tag {
+	case "put":
+		message, err = parsePutMessage(args)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return tag, message, nil
+	return message, nil
 }
 
 func tokenize(data string) []map[string]string {
