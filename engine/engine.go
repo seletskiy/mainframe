@@ -20,6 +20,7 @@ type Engine struct {
 			triangles  uint32
 			glyphs     uint32
 			attributes uint32
+			colors     uint32
 		}
 	}
 
@@ -263,6 +264,17 @@ func (engine *Engine) render(context *Context) error {
 	gl.EnableVertexAttribArray(2)
 	gl.VertexAttribDivisor(2, 1)
 
+	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.colors)
+	gl.BufferData(
+		gl.ARRAY_BUFFER,
+		4*len(context.Screen.colors),
+		gl.Ptr(context.Screen.colors),
+		gl.DYNAMIC_DRAW,
+	)
+	gl.VertexAttribIPointer(3, 2, gl.INT, 2*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(3)
+	gl.VertexAttribDivisor(3, 1)
+
 	gl.DrawArraysInstanced(
 		gl.TRIANGLE_STRIP,
 		0,
@@ -387,6 +399,9 @@ func (engine *Engine) initVertices() error {
 	// Third buffer for vertices data, in this case it's cell attributes.
 	gl.GenBuffers(1, &engine.vertices.buffers.attributes)
 
+	// Fourth buffer for background/foreground colors.
+	gl.GenBuffers(1, &engine.vertices.buffers.colors)
+
 	return nil
 }
 
@@ -394,6 +409,7 @@ func (engine *Engine) free() {
 	gl.DeleteBuffers(1, &engine.vertices.buffers.triangles)
 	gl.DeleteBuffers(1, &engine.vertices.buffers.glyphs)
 	gl.DeleteBuffers(1, &engine.vertices.buffers.attributes)
+	gl.DeleteBuffers(1, &engine.vertices.buffers.colors)
 	gl.DeleteTextures(1, &engine.font.texture)
 	gl.DeleteShader(engine.shaders.vertex)
 	gl.DeleteShader(engine.shaders.fragment)

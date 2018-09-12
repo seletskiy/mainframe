@@ -24,6 +24,9 @@ var vertexShader = `
 	// [input] in_Attrs: cell attributes, passed to fragment shader.
 	in int in_Attrs;
 
+	// [input] in_Colors: cell colors, passed to fragment shader.
+	in ivec2 in_Colors;
+
 	// [output] frag_Cell: (x, y) coordinates of single cell in pixels.
 	flat out ivec2 frag_Cell;
 
@@ -32,6 +35,9 @@ var vertexShader = `
 
 	// [output] frag_Attrs: same as in_Attrs.
 	flat out int frag_Attrs;
+
+	// [output] frag_Colorss: same as in_Colors.
+	flat out ivec2 frag_Colors;
 
 	// [static] uni_ViewSize: viewport size in pixels.
 	uniform ivec2 uni_ViewSize;
@@ -61,6 +67,7 @@ var vertexShader = `
 
 		frag_Glyph = in_Glyph;
 		frag_Attrs = in_Attrs;
+		frag_Colors = in_Colors;
 		frag_Cell = ivec2(column, row) * uni_GlyphSize;
 
 		// After we have (row, column) coordinates, we can translate them
@@ -88,6 +95,9 @@ var fragmentShader = `
 
 	// [input] frag_Attrs: cell attributes in font.
 	flat in int frag_Attrs;
+
+	// [input] frag_Colors: cell colors.
+	flat in ivec2 frag_Colors;
 
 	// [output] out_Color: color of current pixel.
 	out vec4 out_Color;
@@ -121,24 +131,52 @@ var fragmentShader = `
 			discard;
 		}
 		
-		// We first calculate pixel coordinates in coordinate system of
-		// current cell, e.g. from [0; 0] to [glyph width; glyph height].
-		//
-		// Because frag_Cell coorinates use top left corner as origin,
-		// we need to inverse y-part.
-		vec2 coord = (
-			vec2(gl_FragCoord.x, uni_ViewSize.y - gl_FragCoord.y) -
-			frag_Cell
-		);
+		if ((frag_Attrs & 1) != 0) {
+			// We first calculate pixel coordinates in coordinate system of
+			// current cell, e.g. from [0; 0] to [glyph width; glyph height].
+			//
+			// Because frag_Cell coorinates use top left corner as origin,
+			// we need to inverse y-part.
+			vec2 coord = (
+				vec2(gl_FragCoord.x, uni_ViewSize.y - gl_FragCoord.y) -
+				frag_Cell
+			);
 
-		// To obtain pixel color from font we do all calculations in pixels
-		// and then convert them to texture-coords.
-		//
-		// frag_Glyph * uni_GlyphSize - origin of current glyph in texture,
-		// coord - offset of pixel in glyph-local coordinates.
-		out_Color = texture(
-			uni_Font,
-			(coord + frag_Glyph * uni_GlyphSize) / textureSize(uni_Font, 0)
-		);
+			// To obtain pixel color from font we do all calculations in pixels
+			// and then convert them to texture-coords.
+			//
+			// frag_Glyph * uni_GlyphSize - origin of current glyph in texture,
+			// coord - offset of pixel in glyph-local coordinates.
+			out_Color = texture(
+				uni_Font,
+				(coord + frag_Glyph * uni_GlyphSize) / textureSize(uni_Font, 0)
+			);
+		}
+
+		int color;
+
+		if (out_Color.r == 0) {
+			// Flag '4' means that background color is set.
+			if ((frag_Attrs & 4) == 0) {
+				// TODO: pass default background color.
+				color = 0;
+			} else {
+				color = frag_Colors.t;
+			}
+		} else {
+			// Flag '2' means that foreground color is set.
+			if ((frag_Attrs & 2) == 0) {
+				// TODO: pass default foreground color.
+				color = (0xff << 16) + (0xff << 8) + 0xff;
+			} else {
+				color = frag_Colors.s;
+			}
+		}
+
+		int r = (color & 0xff0000) >> 16;
+		int g = (color & 0x00ff00) >> 8;
+		int b = (color & 0x0000ff);
+
+		out_Color = vec4(vec3(r, g, b) / 255.0, 1.0);
 	}
 `

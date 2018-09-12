@@ -100,6 +100,12 @@ func parseColor(data string) color.RGBA {
 	g, _ := strconv.ParseInt(data[1*step:2*step], 16, 0)
 	b, _ := strconv.ParseInt(data[2*step:3*step], 16, 0)
 
+	if step == 1 {
+		r = r + r<<4
+		g = g + g<<4
+		b = b + b<<4
+	}
+
 	return color.RGBA{
 		uint8(r),
 		uint8(g),

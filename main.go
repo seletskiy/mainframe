@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/docopt/docopt-go"
 	"github.com/kovetskiy/lorg"
@@ -42,7 +43,7 @@ type Opts struct {
 }
 
 var (
-	log lorg.Logger
+	log *lorg.Log
 )
 
 func main() {
@@ -52,6 +53,7 @@ func main() {
 	}
 
 	log = lorg.NewLog()
+	log.SetLevel(lorg.LevelTrace)
 
 	var opts Opts
 
@@ -101,11 +103,24 @@ func listen(opts Opts) {
 		log.Fatal(err)
 	}
 
+	var (
+		notch = time.Now()
+		fps   = 0
+	)
+
 	for engine.Running() {
+		if time.Now().Sub(notch) > time.Second {
+			log.Tracef("FPS: %d", fps)
+			fps = 0
+			notch = time.Now()
+		}
+
 		err := engine.Render()
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		fps++
 	}
 }
 
