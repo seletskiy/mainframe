@@ -18,8 +18,11 @@ const (
 type Screen struct {
 	font *fonts.Font
 
-	width  int
-	height int
+	width   int
+	height  int
+	rows    int
+	columns int
+
 	cells  []int32
 	attrs  []int32
 	colors []int32
@@ -28,22 +31,29 @@ type Screen struct {
 }
 
 func NewScreen(width, height int, font *fonts.Font) *Screen {
+	var (
+		columns = width / font.Meta.Width
+		rows    = height / font.Meta.Height
+	)
+
 	return &Screen{
-		width:  width / font.Meta.Width,
-		height: height / font.Meta.Height,
-		font:   font,
-		cells:  make([]int32, 2*width*height),
-		attrs:  make([]int32, width*height),
-		colors: make([]int32, 2*width*height),
+		width:   width,
+		height:  height,
+		columns: columns,
+		rows:    rows,
+		font:    font,
+		cells:   make([]int32, 2*rows*columns),
+		attrs:   make([]int32, rows*columns),
+		colors:  make([]int32, 2*rows*columns),
 	}
 }
 
 func (screen *Screen) SetGlyph(x, y int, char string) bool {
-	if x > screen.width {
+	if x > screen.columns {
 		return false
 	}
 
-	if y > screen.height {
+	if y > screen.rows {
 		return false
 	}
 
@@ -53,7 +63,7 @@ func (screen *Screen) SetGlyph(x, y int, char string) bool {
 		return true
 	}
 
-	pos := x + y*screen.width
+	pos := x + y*screen.columns
 
 	screen.cells[pos*2] = int32(glyph.Column)
 	screen.cells[pos*2+1] = int32(glyph.Row)
@@ -63,15 +73,15 @@ func (screen *Screen) SetGlyph(x, y int, char string) bool {
 }
 
 func (screen *Screen) SetForeground(x, y int, fg *color.RGBA) bool {
-	if x > screen.width {
+	if x >= screen.columns {
 		return false
 	}
 
-	if y > screen.height {
+	if y >= screen.rows {
 		return false
 	}
 
-	pos := x + y*screen.width
+	pos := x + y*screen.columns
 
 	screen.colors[pos*2] = int32(fg.R)<<16 + int32(fg.G)<<8 + int32(fg.B)
 	screen.attrs[pos] |= AttrForeground
@@ -80,15 +90,15 @@ func (screen *Screen) SetForeground(x, y int, fg *color.RGBA) bool {
 }
 
 func (screen *Screen) SetBackground(x, y int, bg *color.RGBA) bool {
-	if x > screen.width {
+	if x >= screen.columns {
 		return false
 	}
 
-	if y > screen.height {
+	if y >= screen.rows {
 		return false
 	}
 
-	pos := x + y*screen.width
+	pos := x + y*screen.columns
 
 	screen.colors[pos*2+1] = int32(bg.R)<<16 + int32(bg.G)<<8 + int32(bg.B)
 	screen.attrs[pos] |= AttrBackground
@@ -97,31 +107,34 @@ func (screen *Screen) SetBackground(x, y int, bg *color.RGBA) bool {
 }
 
 func (screen *Screen) Put(message *messages.Put) bool {
-	var width int
-	var height int
+	screen.lock.Lock()
+	defer screen.lock.Unlock()
 
-	if message.Width != nil {
-		width = *message.Width
+	var columns int
+	var rows int
+
+	if message.Columns != nil {
+		columns = *message.Columns
 	}
 
-	if message.Height != nil {
-		height = *message.Height
+	if message.Rows != nil {
+		rows = *message.Rows
 	} else {
-		height = 1
+		rows = 1
 	}
 
 	if message.Text != nil {
 		text := *message.Text
 
-		if message.Width == nil {
-			width = len(text)
+		if message.Columns == nil {
+			columns = len(text)
 		}
 
 		i := 0
 
 	text:
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
+		for y := 0; y < rows; y++ {
+			for x := 0; x < columns; x++ {
 				if i >= len(text) {
 					break text
 				}
@@ -138,8 +151,8 @@ func (screen *Screen) Put(message *messages.Put) bool {
 
 	if message.Foreground != nil {
 	foreground:
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
+		for y := 0; y < rows; y++ {
+			for x := 0; x < columns; x++ {
 				if !screen.SetForeground(
 					x+message.X,
 					y+message.Y,
@@ -153,8 +166,8 @@ func (screen *Screen) Put(message *messages.Put) bool {
 
 	if message.Background != nil {
 	background:
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
+		for y := 0; y < rows; y++ {
+			for x := 0; x < columns; x++ {
 				if !screen.SetBackground(
 					x+message.X,
 					y+message.Y,
@@ -170,39 +183,50 @@ func (screen *Screen) Put(message *messages.Put) bool {
 }
 
 func (screen *Screen) GetSize() int {
-	return screen.width * screen.height
+	return screen.columns * screen.rows
 }
 
 func (screen *Screen) Resize(width, height int) {
-	width /= screen.font.Meta.Width
-	height /= screen.font.Meta.Height
+	screen.lock.Lock()
+	defer screen.lock.Unlock()
 
-	cells := make([]int32, 2*width*height)
-	attrs := make([]int32, width*height)
+	var (
+		columns = width / screen.font.Meta.Width
+		rows    = height / screen.font.Meta.Height
 
-	for y := 0; y < screen.height; y++ {
-		if y >= height {
+		cells  = make([]int32, 2*rows*columns)
+		attrs  = make([]int32, rows*columns)
+		colors = make([]int32, 2*rows*columns)
+	)
+
+	for y := 0; y < screen.rows; y++ {
+		if y >= rows {
 			break
 		}
 
-		for x := 0; x < screen.width; x++ {
-			if x >= width {
+		for x := 0; x < screen.columns; x++ {
+			if x >= columns {
 				break
 			}
 
 			var (
-				from = x + y*screen.width
-				to   = x + y*width
+				from = x + y*screen.columns
+				to   = x + y*columns
 			)
 
 			cells[to*2] = screen.cells[from*2]
 			cells[to*2+1] = screen.cells[from*2+1]
 			attrs[to] = screen.attrs[from]
+			colors[to*2] = screen.colors[from*2]
+			colors[to*2+1] = screen.colors[from*2+1]
 		}
 	}
 
 	screen.width = width
 	screen.height = height
+	screen.rows = rows
+	screen.columns = columns
 	screen.cells = cells
 	screen.attrs = attrs
+	screen.colors = colors
 }

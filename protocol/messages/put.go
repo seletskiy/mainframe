@@ -8,8 +8,8 @@ type Put struct {
 	X int
 	Y int
 
-	Width  *int
-	Height *int
+	Columns *int
+	Rows    *int
 
 	Foreground *color.RGBA
 	Background *color.RGBA

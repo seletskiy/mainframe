@@ -20,8 +20,8 @@ func parsePutMessage(args map[string]interface{}) (*messages.Put, error) {
 		Require("y").
 		Int("x", &message.X).
 		Int("y", &message.Y).
-		Int("width", &message.Width).
-		Int("height", &message.Height).
+		Int("columns", &message.Columns).
+		Int("rows", &message.Rows).
 		Color("fg", &message.Foreground).
 		Color("bg", &message.Background).
 		String("text", &message.Text).

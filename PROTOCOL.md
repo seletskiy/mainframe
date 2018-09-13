@@ -46,7 +46,7 @@ All error messages will be in form `#err msg: "text"`.
 #### Request
 
 ```
-clear [x: 1 y: 2 [width: 80] [height: 20]]
+clear [x: 1 y: 2 [columns: 80] [rows: 20]]
 ```
 
 * `clear` without arguments will clear entire screen;
@@ -67,7 +67,7 @@ clear [x: 1 y: 2 [width: 80] [height: 20]]
 #### Request
 
 ```
-put x: 1 y: 2 [width: 80] [height: 20] ([fg: #ff0] [bg: #f00] [text: "text string"]) [tick: 123] [exclusive]
+put x: 1 y: 2 [columns: 80] [rows: 20] ([fg: #ff0] [bg: #f00] [text: "text string"]) [tick: 123] [exclusive]
 ```
 
 * `put` can change foreground, background or text at once or one-by-one;
@@ -75,12 +75,12 @@ put x: 1 y: 2 [width: 80] [height: 20] ([fg: #ff0] [bg: #f00] [text: "text strin
 * `exclusive` will mark area changed by `put` command; if another command will
   change cell at specified coordinates, then all marked area will
   be cleared first;
-* if `width` and `height` is given, then entire area will be changed; text
-  will be wrapped to subsequent lines when single line will exceed given `width`;
-* if only `width` is given, `height` is assumed to be `1`;
-* if only `height` is given, `width` is assumed to be `1`;
-* if `width` and `height` is not specified, then `height` is assumed to be `1`
-  and `width` to be equal to length of given `text`; if `text` is not given,
+* if `columns` and `rows` is given, then entire area will be changed; text
+  will be wrapped to subsequent lines when single line will exceed given `columns`;
+* if only `columns` is given, `rows` is assumed to be `1`;
+* if only `rows` is given, `columns` is assumed to be `1`;
+* if `columns` and `rows` is not specified, then `rows` is assumed to be `1`
+  and `columns` to be equal to length of given `text`; if `text` is not given,
   then `put` will only change single specified cell;
 
 #### Response
@@ -121,5 +121,5 @@ subscribe ([keyboard] [resize])
 ### `resize` event
 
 ```
-!event tick: 123 kind: "resize" width: 80 height: 20
+!event tick: 123 kind: "resize" columns: 80 rows: 20
 ```
