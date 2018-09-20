@@ -27,7 +27,7 @@ type ErrIncorrectType struct {
 
 func (err ErrIncorrectType) Error() string {
 	return fmt.Sprintf(
-		"incorrect argument %s type: given %T, expected %s",
+		"incorrect argument %q type: given %T, expected %s",
 		err.Arg,
 		err.Value,
 		err.Type,

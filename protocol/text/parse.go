@@ -60,6 +60,12 @@ func Parse(data string) (messages.Tagged, error) {
 		if err != nil {
 			return nil, err
 		}
+
+	case "subscribe":
+		message, err = parseSubscribeMessage(args)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return message, nil

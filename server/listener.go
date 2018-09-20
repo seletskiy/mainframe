@@ -76,11 +76,11 @@ func (listener *Listener) accept() {
 			continue
 		}
 
-		client := Client{
-			connection: connection,
-			context:    context,
+		client := engine.Client{
+			Connection: connection,
+			Context:    context,
 		}
 
-		go client.serve()
+		go client.Serve()
 	}
 }

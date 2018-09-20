@@ -3,6 +3,7 @@ package engine
 import (
 	"runtime"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -109,7 +110,7 @@ func (engine *Engine) CreateWindow(
 
 			var parent *glfw.Window
 			for _, context := range engine.contexts.handles {
-				parent = context.Window
+				parent = context.window
 				break
 			}
 
@@ -119,10 +120,32 @@ func (engine *Engine) CreateWindow(
 				return
 			}
 
-			context = &Context{
-				Window: window,
-				Screen: NewScreen(width, height, engine.font.handle),
-			}
+			context = NewContext()
+
+			window.SetCharModsCallback(
+				func(
+					_ *glfw.Window,
+					char rune,
+					mods glfw.ModifierKey,
+				) {
+					context.Input(char, mods)
+				},
+			)
+
+			window.SetKeyCallback(
+				func(
+					_ *glfw.Window,
+					key glfw.Key,
+					scancode int,
+					action glfw.Action,
+					mods glfw.ModifierKey,
+				) {
+					context.Key(action, mods, key, scancode)
+				},
+			)
+
+			context.window = window
+			context.screen = NewScreen(width, height, engine.font.handle)
 
 			window.MakeContextCurrent()
 
@@ -165,8 +188,10 @@ func (engine *Engine) Render() error {
 	}
 
 	for handle, context := range engine.contexts.handles {
-		if context.Window.ShouldClose() {
-			context.Window.Destroy()
+		context.tick = time.Now().UnixNano() / int64(time.Microsecond)
+
+		if context.window.ShouldClose() {
+			context.window.Destroy()
 			delete(engine.contexts.handles, handle)
 			continue
 		}
@@ -200,7 +225,7 @@ func (engine *Engine) GetContext(handle uint32) *Context {
 }
 
 func (engine *Engine) render(context *Context) error {
-	context.Window.MakeContextCurrent()
+	context.window.MakeContextCurrent()
 
 	err := engine.initShaders()
 	if err != nil {
@@ -227,10 +252,10 @@ func (engine *Engine) render(context *Context) error {
 		glyphHeight = engine.font.handle.Meta.Height
 	)
 
-	width, height := context.Window.GetSize()
+	width, height := context.window.GetSize()
 
-	if context.Screen.width != width || context.Screen.height != height {
-		context.Screen.Resize(width, height)
+	if context.screen.width != width || context.screen.height != height {
+		context.Resize(width, height)
 	}
 
 	gl.Viewport(0, 0, int32(width), int32(height))
@@ -245,8 +270,8 @@ func (engine *Engine) render(context *Context) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.glyphs)
 	gl.BufferData(
 		gl.ARRAY_BUFFER,
-		4*len(context.Screen.cells),
-		gl.Ptr(context.Screen.cells),
+		4*len(context.screen.cells),
+		gl.Ptr(context.screen.cells),
 		gl.DYNAMIC_DRAW,
 	)
 	gl.VertexAttribIPointer(1, 2, gl.INT, 2*4, gl.PtrOffset(0))
@@ -256,8 +281,8 @@ func (engine *Engine) render(context *Context) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.attributes)
 	gl.BufferData(
 		gl.ARRAY_BUFFER,
-		4*len(context.Screen.attrs),
-		gl.Ptr(context.Screen.attrs),
+		4*len(context.screen.attrs),
+		gl.Ptr(context.screen.attrs),
 		gl.DYNAMIC_DRAW,
 	)
 	gl.VertexAttribIPointer(2, 1, gl.INT, 1*4, gl.PtrOffset(0))
@@ -267,8 +292,8 @@ func (engine *Engine) render(context *Context) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.colors)
 	gl.BufferData(
 		gl.ARRAY_BUFFER,
-		4*len(context.Screen.colors),
-		gl.Ptr(context.Screen.colors),
+		4*len(context.screen.colors),
+		gl.Ptr(context.screen.colors),
 		gl.DYNAMIC_DRAW,
 	)
 	gl.VertexAttribIPointer(3, 2, gl.INT, 2*4, gl.PtrOffset(0))
@@ -279,11 +304,11 @@ func (engine *Engine) render(context *Context) error {
 		gl.TRIANGLE_STRIP,
 		0,
 		6,
-		int32(context.Screen.GetSize()),
+		int32(context.screen.GetSize()),
 	)
 
 	glfw.PollEvents()
-	context.Window.SwapBuffers()
+	context.window.SwapBuffers()
 
 	return nil
 }
@@ -477,7 +502,6 @@ func (engine *Engine) debug(
 	message string,
 	userParam unsafe.Pointer,
 ) {
-	return
 	logger := engine.log.Warningf
 
 	switch kind {

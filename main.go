@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -21,23 +22,24 @@ var usage = `mainframe — terminal.
 
 Usage:
   terminal -h | --help
-  terminal [-s=<socket>] -L
-  terminal [-s=<socket>] -E -- <command>...
+  terminal [options] [-s=<socket>] listen
+  terminal [options] [-s=<socket>] exec -- <command>...
 
 Options:
   -h --help             Show this help.
-  -L --listen           Listen control socket.
   -s --socket <socket>  Path to control socket.
                          [default: /tmp/mainframe.sock]
-  -E --execute          Exec specified command.
+  --profile <path>      Write CPU profile to specified file.
 `
 
 type Opts struct {
 	Socket  string
 	Command []string
 
-	Listen  bool
-	Execute bool
+	Listen bool
+	Exec   bool
+
+	Profile string
 
 	Separator bool `docopt:"--"`
 }
@@ -62,11 +64,21 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if opts.Profile != "" {
+		profile, err := os.Create("cpu.profile")
+		if err != nil {
+			panic(err)
+		}
+
+		pprof.StartCPUProfile(profile)
+		defer pprof.StopCPUProfile()
+	}
+
 	switch {
 	case opts.Listen:
 		listen(opts)
 
-	case opts.Execute:
+	case opts.Exec:
 		execute(opts)
 	}
 }

@@ -110,6 +110,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	screen.lock.Lock()
 	defer screen.lock.Unlock()
 
+	var offscreen bool
 	var columns int
 	var rows int
 
@@ -141,6 +142,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 
 				char := string(text[i])
 				if !screen.SetGlyph(x+message.X, y+message.Y, char) {
+					offscreen = true
 					break text
 				}
 
@@ -158,6 +160,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 					y+message.Y,
 					message.Foreground,
 				) {
+					offscreen = true
 					break foreground
 				}
 			}
@@ -173,20 +176,21 @@ func (screen *Screen) Put(message *messages.Put) bool {
 					y+message.Y,
 					message.Background,
 				) {
+					offscreen = true
 					break background
 				}
 			}
 		}
 	}
 
-	return true
+	return !offscreen
 }
 
 func (screen *Screen) GetSize() int {
 	return screen.columns * screen.rows
 }
 
-func (screen *Screen) Resize(width, height int) {
+func (screen *Screen) Resize(width, height int) (int, int) {
 	screen.lock.Lock()
 	defer screen.lock.Unlock()
 
@@ -229,4 +233,6 @@ func (screen *Screen) Resize(width, height int) {
 	screen.cells = cells
 	screen.attrs = attrs
 	screen.colors = colors
+
+	return columns, rows
 }
