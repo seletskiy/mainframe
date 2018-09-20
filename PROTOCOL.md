@@ -27,7 +27,7 @@ All successfull responses for commands that does not return value start from
 All successfull responses contain `tick: 123` which specify tick on
 which response was generated.
 
-All error messages will be in form `err msg: "text"`.
+All error messages will be in form `error message: "text"`.
 
 ## Ticks
 
