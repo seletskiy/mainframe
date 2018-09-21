@@ -151,6 +151,8 @@ var fragmentShader = `
 				uni_Font,
 				(coord + frag_Glyph * uni_GlyphSize) / textureSize(uni_Font, 0)
 			);
+		} else {
+			out_Color = vec4(0, 0, 0, 0);
 		}
 
 		int color;
@@ -167,7 +169,7 @@ var fragmentShader = `
 			// Flag '2' means that foreground color is set.
 			if ((frag_Attrs & 2) == 0) {
 				// TODO: pass default foreground color.
-				color = (0xff << 16) + (0xff << 8) + 0xff;
+				color = 0xffffff;
 			} else {
 				color = frag_Colors.s;
 			}
