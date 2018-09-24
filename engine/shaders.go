@@ -130,6 +130,8 @@ var fragmentShader = `
 		if (frag_Attrs == 0) {
 			discard;
 		}
+
+		float alpha = 0;
 		
 		if ((frag_Attrs & 1) != 0) {
 			// We first calculate pixel coordinates in coordinate system of
@@ -147,38 +149,38 @@ var fragmentShader = `
 			//
 			// frag_Glyph * uni_GlyphSize - origin of current glyph in texture,
 			// coord - offset of pixel in glyph-local coordinates.
-			out_Color = texture(
+			//
+			// We currently interested only in alpha channel.
+			alpha = texture(
 				uni_Font,
 				(coord + frag_Glyph * uni_GlyphSize) / textureSize(uni_Font, 0)
+			).a;
+		}
+
+		// TODO: pass default foreground color.
+		// TODO: pass default background color.
+		vec3 fg = vec3(1.0, 1.0, 1.0);
+		vec3 bg = vec3(0.0, 0.0, 0.0);
+
+		// Flag '2' means that foreground color is set.
+		if ((frag_Attrs & 2) != 0) {
+			fg = vec3(
+				float((frag_Colors.x & 0xff0000) >> 16) / 0xff,
+				float((frag_Colors.x & 0x00ff00) >>  8) / 0xff,
+				float((frag_Colors.x & 0x0000ff) >>  0) / 0xff
 			);
-		} else {
-			out_Color = vec4(0, 0, 0, 0);
 		}
 
-		int color;
-
-		if (out_Color.r == 0) {
-			// Flag '4' means that background color is set.
-			if ((frag_Attrs & 4) == 0) {
-				// TODO: pass default background color.
-				color = 0;
-			} else {
-				color = frag_Colors.t;
-			}
-		} else {
-			// Flag '2' means that foreground color is set.
-			if ((frag_Attrs & 2) == 0) {
-				// TODO: pass default foreground color.
-				color = 0xffffff;
-			} else {
-				color = frag_Colors.s;
-			}
+		// Flag '4' means that background color is set.
+		if ((frag_Attrs & 4) != 0) {
+			bg = vec3(
+				float((frag_Colors.y & 0xff0000) >> 16) / 0xff,
+				float((frag_Colors.y & 0x00ff00) >>  8) / 0xff,
+				float((frag_Colors.y & 0x0000ff) >>  0) / 0xff
+			);
 		}
 
-		int r = (color & 0xff0000) >> 16;
-		int g = (color & 0x00ff00) >> 8;
-		int b = (color & 0x0000ff);
-
-		out_Color = vec4(vec3(r, g, b) / 255.0, 1.0);
+		out_Color = vec4(fg * alpha + bg * (1 - alpha), 1.0);
+		out_Color.a = 1.0;
 	}
 `

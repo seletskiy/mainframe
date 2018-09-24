@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"strconv"
-	"strings"
 
 	"github.com/seletskiy/mainframe/protocol/messages"
 )
@@ -31,9 +30,14 @@ func Parse(data string) (messages.Tagged, error) {
 				value = parseColor(token["color"])
 
 			case token["string"] != "":
-				value = strings.NewReplacer(`\\`, `\`, `\"`, `"`).Replace(
-					token["string"],
-				)
+				var err error
+				value, err = strconv.Unquote(token["string"])
+				if err != nil {
+					return nil, fmt.Errorf(
+						`unable to unquote string: %q`,
+						token["string"],
+					)
+				}
 
 			default:
 				value = true

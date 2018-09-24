@@ -164,11 +164,9 @@ func processGlyphsImage(input image.Image) *image.RGBA {
 	width, height := input.Bounds().Dx(), input.Bounds().Dy()
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			r, b, g, a := input.At(x, y).RGBA()
+			_, _, _, a := input.At(x, y).RGBA()
 
-			if a > 0 && r == g && g == b && r < 255 {
-				glyphs.Set(x, y, color.White)
-			}
+			glyphs.Set(x, y, color.RGBA{0xff, 0xff, 0xff, uint8(a >> 8)})
 		}
 	}
 

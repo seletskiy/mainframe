@@ -4,7 +4,6 @@ import "fmt"
 import "github.com/seletskiy/mainframe/protocol/messages"
 import "image/color"
 import "strconv"
-import "strings"
 
 func Serialize(message messages.Serializable) string {
 	var (
@@ -35,9 +34,8 @@ func Serialize(message messages.Serializable) string {
 			buffer += serializeColor(value)
 
 		case string:
-			buffer += `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(
-				value,
-			) + `"`
+			buffer += strconv.Quote(value)
+
 		default:
 			panic(
 				fmt.Sprintf(

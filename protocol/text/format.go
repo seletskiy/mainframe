@@ -10,7 +10,7 @@ var (
 
 	reValueInt    = regexp.MustCompile(`(?P<int>\d+)`)
 	reValueColor  = regexp.MustCompile(`#(?P<color>[\da-f]{3}|[\da-f]{6})`)
-	reValueString = regexp.MustCompile(`"(?P<string>(?:\\.|[^\\"])*)"`)
+	reValueString = regexp.MustCompile(`(?P<string>"(?:\\.|[^\\"])*")`)
 
 	reValue = regexp.MustCompile(
 		strings.NewReplacer(

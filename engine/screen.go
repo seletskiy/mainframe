@@ -131,23 +131,25 @@ func (screen *Screen) Put(message *messages.Put) bool {
 			columns = len(text)
 		}
 
-		i := 0
+		var i int
 
-	text:
-		for y := 0; y < rows; y++ {
-			for x := 0; x < columns; x++ {
-				if i >= len(text) {
-					break text
-				}
-
-				char := string(text[i])
-				if !screen.SetGlyph(x+message.X, y+message.Y, char) {
-					offscreen = true
-					break text
-				}
-
-				i++
+		for _, char := range text {
+			x := i % columns
+			y := i / columns
+			if y > rows {
+				break
 			}
+
+			if char == '\n' {
+				i += (columns - i%columns)
+				continue
+			}
+
+			if !screen.SetGlyph(x+message.X, y+message.Y, string(char)) {
+				offscreen = true
+			}
+
+			i++
 		}
 	}
 
