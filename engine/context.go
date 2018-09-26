@@ -116,5 +116,7 @@ func (context *Context) Key(
 }
 
 func (context *Context) Close() {
-	context.window.SetShouldClose(true)
+	if context.window != nil {
+		context.window.SetShouldClose(true)
+	}
 }

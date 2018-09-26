@@ -12,6 +12,7 @@ import (
 type Client struct {
 	Connection net.Conn
 	Context    *Context
+	Engine     *Engine
 }
 
 func (client *Client) Serve() {
@@ -35,6 +36,9 @@ func (client *Client) Serve() {
 
 		case *messages.Subscribe:
 			err = client.handleSubscribe(message)
+
+		case *messages.Open:
+			err = client.handleOpen(message)
 		}
 
 		if err != nil {
@@ -46,7 +50,9 @@ func (client *Client) Serve() {
 		}
 	}
 
-	client.Context.Close()
+	if client.Context != nil {
+		client.Context.Close()
+	}
 }
 
 func (client *Client) Send(message messages.Serializable) error {
@@ -93,6 +99,22 @@ func (client *Client) handleSubscribe(message *messages.Subscribe) error {
 	if message.Input {
 		client.Context.Subscribe(client, SubscriptionInput)
 	}
+
+	return client.Send(&reply)
+}
+
+func (client *Client) handleOpen(message *messages.Open) error {
+	var err error
+
+	client.Context, err = client.Engine.CreateWindow(message)
+	if err != nil {
+		return err
+	}
+
+	var reply messages.OK
+
+	// TODO: reply with id of newly created window
+	//reply.Set("id", 123)
 
 	return client.Send(&reply)
 }

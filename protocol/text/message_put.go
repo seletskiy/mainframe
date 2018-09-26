@@ -4,7 +4,9 @@ import (
 	"github.com/seletskiy/mainframe/protocol/messages"
 )
 
-func parsePutMessage(args map[string]interface{}) (*messages.Put, error) {
+func parsePutMessage(
+	args map[string]interface{},
+) (messages.Tagged, error) {
 	switch {
 	case args["fg"] != nil:
 	case args["bg"] != nil:

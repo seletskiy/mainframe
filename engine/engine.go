@@ -11,6 +11,12 @@ import (
 	"github.com/kovetskiy/lorg"
 	"github.com/reconquest/karma-go"
 	"github.com/seletskiy/mainframe/fonts"
+	"github.com/seletskiy/mainframe/protocol/messages"
+)
+
+const (
+	DefaultWindowWidth  = 640
+	DefaultWindowHeight = 480
 )
 
 type Engine struct {
@@ -89,73 +95,30 @@ func (engine *Engine) Init() error {
 	return nil
 }
 
-func (engine *Engine) CreateWindow(
-	width int,
-	height int,
-	title string,
-) (*Context, error) {
+func (engine *Engine) CreateWindow(options *messages.Open) (*Context, error) {
 	var (
 		err     error
 		context *Context
 	)
 
+	var (
+		width  = DefaultWindowWidth
+		height = DefaultWindowHeight
+	)
+
+	if options.Width != nil {
+		width = int(*options.Width)
+	}
+
+	if options.Height != nil {
+		height = int(*options.Height)
+	}
+
 	// All GL commands should be evaluated in same system thread, so we
 	// need to send them to main engine thread to execute.
 	engine.delegate(
 		func() {
-			glfw.WindowHint(glfw.ContextVersionMajor, 4)
-			glfw.WindowHint(glfw.ContextVersionMinor, 1)
-			glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-			glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-
-			var parent *glfw.Window
-			for _, context := range engine.contexts.handles {
-				parent = context.window
-				break
-			}
-
-			var window *glfw.Window
-			window, err = glfw.CreateWindow(width, height, title, nil, parent)
-			if err != nil {
-				return
-			}
-
-			context = NewContext()
-
-			window.SetCharModsCallback(
-				func(
-					_ *glfw.Window,
-					char rune,
-					mods glfw.ModifierKey,
-				) {
-					context.Input(char, mods)
-				},
-			)
-
-			window.SetKeyCallback(
-				func(
-					_ *glfw.Window,
-					key glfw.Key,
-					scancode int,
-					action glfw.Action,
-					mods glfw.ModifierKey,
-				) {
-					context.Key(action, mods, key, scancode)
-				},
-			)
-
-			context.window = window
-			context.screen = NewScreen(width, height, engine.font.handle)
-
-			window.MakeContextCurrent()
-
-			gl.Enable(gl.DEBUG_OUTPUT)
-			gl.DebugMessageCallback(engine.debug, nil)
-
-			gl.GenVertexArrays(1, &context.vao)
-
-			engine.contexts.last++
-			engine.contexts.handles[engine.contexts.last] = context
+			context = engine.createWindow(width, height, options)
 		},
 	)
 	if err != nil {
@@ -222,6 +185,126 @@ func (engine *Engine) Stop() {
 
 func (engine *Engine) GetContext(handle uint32) *Context {
 	return engine.contexts.handles[handle]
+}
+
+func (engine *Engine) createWindow(
+	width,
+	height int,
+	options *messages.Open,
+) *Context {
+	glfw.WindowHint(glfw.ContextVersionMajor, 4)
+	glfw.WindowHint(glfw.ContextVersionMinor, 1)
+	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
+	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+
+	var position bool
+
+	if options.X != nil && options.Y != nil {
+		position = true
+	}
+
+	// FIXME: hidden has no use now, because there is no way to show hidden
+	// window from mainframe API.
+	if options.Hidden || options.Raw || position {
+		glfw.WindowHint(glfw.Visible, glfw.False)
+	} else {
+		glfw.WindowHint(glfw.Visible, glfw.True)
+	}
+
+	// FIXME: not really works with i3 for the reason it doesn't check for
+	// NET_WM_STATE_ABOVE when setting floating mode:
+	//
+	// https://github.com/i3/i3/blob/next/src/manage.c#L439
+	//if options.Floating {
+	//    glfw.WindowHint(glfw.Floating, glfw.True)
+	//} else {
+	//    glfw.WindowHint(glfw.Floating, glfw.False)
+	//}
+
+	if options.Fixed {
+		glfw.WindowHint(glfw.Resizable, glfw.False)
+	} else {
+		glfw.WindowHint(glfw.Resizable, glfw.True)
+	}
+
+	if options.Decorated {
+		glfw.WindowHint(glfw.Decorated, glfw.True)
+	} else {
+		glfw.WindowHint(glfw.Decorated, glfw.False)
+	}
+
+	var parent *glfw.Window
+	for _, context := range engine.contexts.handles {
+		parent = context.window
+		break
+	}
+
+	var window *glfw.Window
+	window, err := glfw.CreateWindow(
+		width,
+		height,
+		options.Title,
+		nil,
+		parent,
+	)
+	if err != nil {
+		return nil
+	}
+
+	if position {
+		window.SetPos(*options.X, *options.Y)
+	}
+
+	if options.Raw {
+		overrideRedirect(window)
+	}
+
+	if !options.Hidden && (options.Raw || position) {
+		window.Show()
+	}
+
+	context := NewContext()
+
+	window.SetCharModsCallback(
+		func(
+			_ *glfw.Window,
+			char rune,
+			mods glfw.ModifierKey,
+		) {
+			context.Input(char, mods)
+		},
+	)
+
+	window.SetKeyCallback(
+		func(
+			_ *glfw.Window,
+			key glfw.Key,
+			scancode int,
+			action glfw.Action,
+			mods glfw.ModifierKey,
+		) {
+			context.Key(action, mods, key, scancode)
+		},
+	)
+
+	context.window = window
+	context.screen = NewScreen(
+		width,
+		height,
+		engine.font.handle,
+	)
+
+	window.MakeContextCurrent()
+
+	gl.Enable(gl.DEBUG_OUTPUT)
+	gl.DebugMessageCallback(engine.debug, nil)
+
+	gl.GenVertexArrays(1, &context.vao)
+
+	engine.contexts.last++
+	engine.contexts.handles[engine.contexts.last] = context
+
+	return context
 }
 
 func (engine *Engine) render(context *Context) error {

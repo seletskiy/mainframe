@@ -8,6 +8,8 @@ import (
 	"github.com/seletskiy/mainframe/protocol/messages"
 )
 
+type ParseFunc func(map[string]interface{}) (messages.Tagged, error)
+
 func Parse(data string) (messages.Tagged, error) {
 	var (
 		tag  string
@@ -53,26 +55,18 @@ func Parse(data string) (messages.Tagged, error) {
 		}
 	}
 
-	var (
-		message messages.Tagged
-		err     error
-	)
-
-	switch tag {
-	case "put":
-		message, err = parsePutMessage(args)
-		if err != nil {
-			return nil, err
-		}
-
-	case "subscribe":
-		message, err = parseSubscribeMessage(args)
-		if err != nil {
-			return nil, err
-		}
+	parsers := map[string]ParseFunc{
+		"ok":        parseOKMessage,
+		"put":       parsePutMessage,
+		"subscribe": parseSubscribeMessage,
+		"open":      parseOpenMessage,
 	}
 
-	return message, nil
+	if parser, ok := parsers[tag]; ok {
+		return parser(args)
+	} else {
+		return nil, fmt.Errorf(`unknown message tag: %s`, tag)
+	}
 }
 
 func tokenize(data string) []map[string]string {

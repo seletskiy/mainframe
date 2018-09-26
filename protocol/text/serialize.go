@@ -1,19 +1,21 @@
 package text
 
-import "fmt"
-import "github.com/seletskiy/mainframe/protocol/messages"
-import "image/color"
-import "strconv"
+import (
+	"fmt"
+	"image/color"
+	"strconv"
 
-func Serialize(message messages.Serializable) string {
+	"github.com/seletskiy/mainframe/protocol/messages"
+)
+
+func Serialize(message messages.Serializable) []byte {
 	var (
 		buffer = message.Tag()
 		args   = message.Serialize()
 	)
 
 	for _, arg := range args {
-		switch value := arg.Value.(type) {
-		case bool:
+		if value, ok := arg.Value.(bool); ok {
 			if value {
 				buffer += " " + arg.Name
 			}
@@ -21,34 +23,64 @@ func Serialize(message messages.Serializable) string {
 			continue
 		}
 
-		buffer += " " + arg.Name + ": "
-
-		switch value := arg.Value.(type) {
-		case int64:
-			buffer += strconv.FormatInt(value, 10)
-
-		case int:
-			buffer += strconv.Itoa(value)
-
-		case color.RGBA:
-			buffer += serializeColor(value)
-
-		case string:
-			buffer += strconv.Quote(value)
-
-		default:
-			panic(
-				fmt.Sprintf(
-					"unsupported argument type: %T (%q = %q)",
-					arg.Value,
-					arg.Name,
-					arg.Value,
-				),
-			)
+		if value := serializeValue(arg.Value); value != "" {
+			buffer += " " + arg.Name + ": " + value
 		}
 	}
 
-	return buffer + "\n"
+	return []byte(buffer + "\n")
+}
+
+func serializeValue(value interface{}) string {
+	switch value := value.(type) {
+	case *int64:
+		if value == nil {
+			return ""
+		}
+
+		return serializeValue(*value)
+
+	case *int:
+		if value == nil {
+			return ""
+		}
+
+		return serializeValue(*value)
+
+	case *color.RGBA:
+		if value == nil {
+			return ""
+		}
+
+		return serializeValue(*value)
+
+	case *string:
+		if value == nil {
+			return ""
+		}
+
+		return serializeValue(*value)
+
+	case int64:
+		return strconv.FormatInt(value, 10)
+
+	case int:
+		return strconv.Itoa(value)
+
+	case color.RGBA:
+		return serializeColor(value)
+
+	case string:
+		return strconv.Quote(value)
+
+	default:
+		panic(
+			fmt.Sprintf(
+				"unsupported argument type: %[1]T (%[1]v)",
+				value,
+			),
+		)
+	}
 }
 
 func serializeColor(color color.RGBA) string {

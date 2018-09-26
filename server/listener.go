@@ -67,18 +67,9 @@ func (listener *Listener) accept() {
 			continue
 		}
 
-		context, err := listener.engine.CreateWindow(640, 480, "mainframe")
-		if err != nil {
-			log.Error(
-				karma.Format(err, "unable to create window").Error(),
-			)
-
-			continue
-		}
-
 		client := engine.Client{
 			Connection: connection,
-			Context:    context,
+			Engine:     listener.engine,
 		}
 
 		go client.Serve()

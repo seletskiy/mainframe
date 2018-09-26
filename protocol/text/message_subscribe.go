@@ -6,7 +6,7 @@ import (
 
 func parseSubscribeMessage(
 	args map[string]interface{},
-) (*messages.Subscribe, error) {
+) (messages.Tagged, error) {
 	message := &messages.Subscribe{}
 
 	err := NewSpec().

@@ -1,18 +1,24 @@
 package main
 
 import (
+	"bufio"
+	"io"
 	"net"
 	"os"
 	"os/exec"
 	"runtime/pprof"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/docopt/docopt-go"
 	"github.com/kovetskiy/lorg"
+	"github.com/reconquest/karma-go"
 	"github.com/reconquest/sign-go"
 	"github.com/seletskiy/mainframe/engine"
 	"github.com/seletskiy/mainframe/fonts"
+	"github.com/seletskiy/mainframe/protocol/messages"
+	"github.com/seletskiy/mainframe/protocol/text"
 	"github.com/seletskiy/mainframe/server"
 )
 
@@ -23,13 +29,14 @@ var usage = `mainframe — terminal.
 Usage:
   terminal -h | --help
   terminal [options] [-s=<socket>] listen
-  terminal [options] [-s=<socket>] exec -- <command>...
+  terminal [options] [-s=<socket>] exec [--options=] -- <command>...
 
 Options:
   -h --help             Show this help.
   -s --socket <socket>  Path to control socket.
                          [default: /tmp/mainframe.sock]
   --profile <path>      Write CPU profile to specified file.
+  --options <options>   Parameters for new window in text protocol format.
 `
 
 type Opts struct {
@@ -38,6 +45,8 @@ type Opts struct {
 
 	Listen bool
 	Exec   bool
+
+	Options string
 
 	Profile string
 
@@ -137,17 +146,17 @@ func listen(opts Opts) {
 }
 
 func execute(opts Opts) {
-	addr, err := net.ResolveUnixAddr("unix", opts.Socket)
+	connection, err := net.Dial("unix", opts.Socket)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	connection, err := net.DialUnix("unix", nil, addr)
+	err = openWindow(opts, connection)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	socket, err := connection.File()
+	socket, err := connection.(*net.UnixConn).File()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,4 +170,42 @@ func execute(opts Opts) {
 
 	syscall.Dup2(int(socket.Fd()), 3)
 	syscall.Exec(path, opts.Command, env)
+}
+
+func openWindow(opts Opts, connection net.Conn) error {
+	message, err := text.Parse(`open ` + opts.Options)
+	if err != nil {
+		return err
+	}
+
+	options := message.(*messages.Open)
+
+	if options.Title == "" {
+		options.Title = "mainframe: " + strings.Join(opts.Command, " ")
+	}
+
+	_, err = connection.Write(text.Serialize(options))
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(connection)
+
+	if !scanner.Scan() {
+		return io.EOF
+	}
+
+	response, err := text.Parse(scanner.Text())
+	if err != nil {
+		return err
+	}
+
+	if response.Tag() != "ok" {
+		return karma.Format(
+			err,
+			"error while creating window",
+		)
+	}
+
+	return nil
 }

@@ -49,11 +49,11 @@ func NewScreen(width, height int, font *fonts.Font) *Screen {
 }
 
 func (screen *Screen) SetGlyph(x, y int, char string) bool {
-	if x > screen.columns {
+	if x >= screen.columns {
 		return false
 	}
 
-	if y > screen.rows {
+	if y >= screen.rows {
 		return false
 	}
 
@@ -154,7 +154,6 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	}
 
 	if message.Foreground != nil {
-	foreground:
 		for y := 0; y < rows; y++ {
 			for x := 0; x < columns; x++ {
 				if !screen.SetForeground(
@@ -163,14 +162,12 @@ func (screen *Screen) Put(message *messages.Put) bool {
 					message.Foreground,
 				) {
 					offscreen = true
-					break foreground
 				}
 			}
 		}
 	}
 
 	if message.Background != nil {
-	background:
 		for y := 0; y < rows; y++ {
 			for x := 0; x < columns; x++ {
 				if !screen.SetBackground(
@@ -179,7 +176,6 @@ func (screen *Screen) Put(message *messages.Put) bool {
 					message.Background,
 				) {
 					offscreen = true
-					break background
 				}
 			}
 		}
