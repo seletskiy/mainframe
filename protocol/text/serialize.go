@@ -15,63 +15,73 @@ func Serialize(message messages.Serializable) []byte {
 	)
 
 	for _, arg := range args {
-		if value, ok := arg.Value.(bool); ok {
-			if value {
+		if value, flag := serializeValue(arg.Value); value != "" {
+			if flag {
 				buffer += " " + arg.Name
+			} else {
+				buffer += " " + arg.Name + ": " + value
 			}
-
-			continue
-		}
-
-		if value := serializeValue(arg.Value); value != "" {
-			buffer += " " + arg.Name + ": " + value
 		}
 	}
 
 	return []byte(buffer + "\n")
 }
 
-func serializeValue(value interface{}) string {
+func serializeValue(value interface{}) (string, bool) {
 	switch value := value.(type) {
+	case *bool:
+		if value == nil {
+			return "", true
+		}
+
+		return serializeValue(*value)
+
 	case *int64:
 		if value == nil {
-			return ""
+			return "", false
 		}
 
 		return serializeValue(*value)
 
 	case *int:
 		if value == nil {
-			return ""
+			return "", false
 		}
 
 		return serializeValue(*value)
 
 	case *color.RGBA:
 		if value == nil {
-			return ""
+			return "", false
 		}
 
 		return serializeValue(*value)
 
 	case *string:
 		if value == nil {
-			return ""
+			return "", false
 		}
 
 		return serializeValue(*value)
 
+	case bool:
+		if value {
+			return "true", true
+		} else {
+			return "", true
+		}
+
 	case int64:
-		return strconv.FormatInt(value, 10)
+		return strconv.FormatInt(value, 10), false
 
 	case int:
-		return strconv.Itoa(value)
+		return strconv.Itoa(value), false
 
 	case color.RGBA:
-		return serializeColor(value)
+		return serializeColor(value), false
 
 	case string:
-		return strconv.Quote(value)
+		return strconv.Quote(value), false
 
 	default:
 		panic(
