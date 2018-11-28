@@ -19,6 +19,20 @@ type Put struct {
 	Exclusive *bool
 }
 
-func (put *Put) Tag() string {
+func (message *Put) Tag() string {
 	return "put"
+}
+
+func (message *Put) Serialize() []Arg {
+	return []Arg{
+		{"x", message.X},
+		{"y", message.Y},
+		{"columns", message.Columns},
+		{"rows", message.Rows},
+		{"fg", message.Foreground},
+		{"bg", message.Background},
+		{"text", message.Text},
+		{"tick", message.Tick},
+		{"exclusive", message.Exclusive},
+	}
 }

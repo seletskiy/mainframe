@@ -5,6 +5,44 @@ Following syntax is used to describe commands:
 * `[x]` — `x` or nothing.
 * `(x|y)` — `x` or `y`.
 * `([x] [y])` — `x` or `y` or `x y`.
+* `([x]|[y])` — `x` or `y` or nothing.
+
+## Window commands
+
+### `open`: opens new window and binds session to it
+
+#### Request
+
+```
+open ([width: 640 height: 480]|[columns: 80 rows: 20]) [x: 1 y: 2] [title: "string"] [raw] [hidden] [fixed] [bare] [floating]
+```
+
+* `open` without arguments will open window with default size;
+* `width` and `height` can be used to specify window size in pixels;
+* `columns` and `rows` can be used to specify window size using current font size;
+* `x` and `y` specify position of newly created window;
+* if tiling WM is used, then size and poosition arguments will be ignored
+  unless window is made floating via WM configuration or `raw` option is
+  specified;
+* `raw` creates window that completely ignored by WM;
+* `floating` hint can be ignored by WM and have no effect;
+* `hidden` creates window that should be shown to be displayed;
+* `bare` specify that window should be created without any WM decorations (e.g. no borders);
+
+#### Response
+
+```
+ok id: 123
+```
+
+* `id` can be used for other window manipulation commands;
+
+#### Notes
+
+* after window is open all further commands will operate on this window by
+  default;
+* if client closes connection, all open windows that were opened via this
+  connection will be closed;
 
 ## Output commands
 
@@ -34,7 +72,7 @@ ok [offscreen]
 #### Request
 
 ```
-put x: 1 y: 2 [columns: 80] [rows: 20] ([fg: #ff0] [bg: #f00] [text: "text string"]) [tick: 123] [exclusive]
+put x: 1 y: 2 [columns: 80] [rows: 20] ([fg: #ff0] [bg: #f00] [text: "string"]) [tick: 123] [exclusive]
 ```
 
 * `put` can change foreground, background or text at once or one-by-one;

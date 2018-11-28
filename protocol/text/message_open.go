@@ -12,6 +12,21 @@ func parseOpenMessage(
 	message := &messages.Open{}
 
 	switch {
+	case args["rows"] != nil && args["columns"] == nil:
+		fallthrough
+	case args["rows"] == nil && args["columns"] != nil:
+		return nil, fmt.Errorf("rows and columns should be specified together")
+	}
+
+	if args["rows"] != nil || args["columns"] != nil {
+		if args["width"] != nil || args["height"] != nil {
+			return nil, fmt.Errorf(
+				"rows + columns and width + height are mutually exclusive",
+			)
+		}
+	}
+
+	switch {
 	case args["width"] != nil && args["height"] == nil:
 		fallthrough
 	case args["width"] == nil && args["height"] != nil:
@@ -28,13 +43,15 @@ func parseOpenMessage(
 	err := NewSpec().
 		Int("width", &message.Width).
 		Int("height", &message.Height).
+		Int("rows", &message.Rows).
+		Int("columns", &message.Columns).
 		Int("x", &message.X).
 		Int("y", &message.Y).
 		String("title", &message.Title).
 		Bool("raw", &message.Raw).
 		Bool("hidden", &message.Hidden).
 		Bool("fixed", &message.Fixed).
-		Bool("decorated", &message.Decorated).
+		Bool("bare", &message.Bare).
 		Bool("floating", &message.Floating).
 		Bind(args)
 	if err != nil {
@@ -50,6 +67,18 @@ func parseOpenMessage(
 	if message.Height != nil {
 		if *message.Height <= 0 {
 			return nil, fmt.Errorf("height should be greater than zero")
+		}
+	}
+
+	if message.Columns != nil {
+		if *message.Columns <= 0 {
+			return nil, fmt.Errorf("columns should be greater than zero")
+		}
+	}
+
+	if message.Rows != nil {
+		if *message.Rows <= 0 {
+			return nil, fmt.Errorf("rows should be greater than zero")
 		}
 	}
 

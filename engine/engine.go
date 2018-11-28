@@ -114,6 +114,14 @@ func (engine *Engine) CreateWindow(options *messages.Open) (*Context, error) {
 		height = int(*options.Height)
 	}
 
+	if options.Columns != nil {
+		width = *options.Columns * engine.font.handle.Meta.Width
+	}
+
+	if options.Rows != nil {
+		height = *options.Rows * engine.font.handle.Meta.Height
+	}
+
 	// All GL commands should be evaluated in same system thread, so we
 	// need to send them to main engine thread to execute.
 	engine.delegate(
@@ -227,10 +235,10 @@ func (engine *Engine) createWindow(
 		glfw.WindowHint(glfw.Resizable, glfw.True)
 	}
 
-	if options.Decorated {
-		glfw.WindowHint(glfw.Decorated, glfw.True)
-	} else {
+	if options.Bare {
 		glfw.WindowHint(glfw.Decorated, glfw.False)
+	} else {
+		glfw.WindowHint(glfw.Decorated, glfw.True)
 	}
 
 	var parent *glfw.Window
