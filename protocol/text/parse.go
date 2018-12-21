@@ -57,6 +57,7 @@ func Parse(data string) (messages.Tagged, error) {
 
 	parsers := map[string]ParseFunc{
 		"ok":        parseOKMessage,
+		"error":     parseErrorMessage,
 		"put":       parsePutMessage,
 		"subscribe": parseSubscribeMessage,
 		"open":      parseOpenMessage,
