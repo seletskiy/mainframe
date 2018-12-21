@@ -60,6 +60,7 @@ func Parse(data string) (messages.Tagged, error) {
 		"put":       parsePutMessage,
 		"subscribe": parseSubscribeMessage,
 		"open":      parseOpenMessage,
+		"get":       parseGetMessage,
 	}
 
 	if parser, ok := parsers[tag]; ok {

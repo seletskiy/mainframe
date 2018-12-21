@@ -39,6 +39,9 @@ func (client *Client) Serve() {
 
 		case *messages.Open:
 			err = client.handleOpen(message)
+
+		case *messages.Get:
+			err = client.handleGet(message)
 		}
 
 		if err != nil {
@@ -115,6 +118,20 @@ func (client *Client) handleOpen(message *messages.Open) error {
 
 	// TODO: reply with id of newly created window
 	//reply.Set("id", 123)
+
+	return client.Send(&reply)
+}
+
+func (client *Client) handleGet(message *messages.Get) error {
+	var reply messages.OK
+
+	switch {
+	case message.Font.Set:
+		font := client.Engine.GetFont()
+
+		reply.Set("width", font.Meta.Width)
+		reply.Set("height", font.Meta.Height)
+	}
 
 	return client.Send(&reply)
 }

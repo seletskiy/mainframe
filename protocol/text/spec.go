@@ -9,6 +9,10 @@ type Spec struct {
 	Required []string
 	Types    map[string]string
 	Bound    map[string]interface{}
+
+	Opts struct {
+		SkipUnknown bool
+	}
 }
 
 func NewSpec() *Spec {
@@ -52,6 +56,12 @@ func (spec *Spec) Require(arg string) *Spec {
 	return spec
 }
 
+func (spec *Spec) SkipUnknown() *Spec {
+	spec.Opts.SkipUnknown = true
+
+	return spec
+}
+
 func (spec *Spec) Bind(args map[string]interface{}) error {
 	for _, name := range spec.Required {
 		if _, ok := args[name]; !ok {
@@ -61,6 +71,10 @@ func (spec *Spec) Bind(args map[string]interface{}) error {
 
 	for name, _ := range args {
 		if _, ok := spec.Types[name]; !ok {
+			if spec.Opts.SkipUnknown {
+				continue
+			}
+
 			return ErrUnknownArg(name)
 		}
 

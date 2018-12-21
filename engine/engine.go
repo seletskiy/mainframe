@@ -184,6 +184,10 @@ func (engine *Engine) SetFont(font *fonts.Font) {
 	engine.font.handle = font
 }
 
+func (engine *Engine) GetFont() *fonts.Font {
+	return engine.font.handle
+}
+
 func (engine *Engine) Stop() {
 	engine.delegate(func() {
 		glfw.Terminate()
