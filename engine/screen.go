@@ -2,6 +2,7 @@ package engine
 
 import (
 	"image/color"
+	"strconv"
 	"sync"
 
 	"github.com/seletskiy/mainframe/fonts"
@@ -27,6 +28,8 @@ type Screen struct {
 	attrs  []int32
 	colors []int32
 
+	regions map[string]ScreenRegion
+
 	lock sync.Mutex
 }
 
@@ -45,6 +48,8 @@ func NewScreen(width, height int, font *fonts.Font) *Screen {
 		cells:   make([]int32, 2*rows*columns),
 		attrs:   make([]int32, rows*columns),
 		colors:  make([]int32, 2*rows*columns),
+
+		regions: make(map[string]ScreenRegion),
 	}
 }
 
@@ -110,9 +115,22 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	screen.lock.Lock()
 	defer screen.lock.Unlock()
 
-	var offscreen bool
-	var columns int
-	var rows int
+	var (
+		address = screen.getRegionID(message.X, message.Y)
+		region  = screen.regions[address]
+	)
+
+	if region.Exclusive {
+		screen.Clear(message.X, message.Y, region.Rows, region.Columns)
+
+		region.Exclusive = false
+	}
+
+	var (
+		offscreen bool
+		columns   int
+		rows      int
+	)
 
 	if message.Columns != nil {
 		columns = *message.Columns
@@ -122,6 +140,13 @@ func (screen *Screen) Put(message *messages.Put) bool {
 		rows = *message.Rows
 	} else {
 		rows = 1
+	}
+
+	switch {
+	case message.Exclusive:
+		region.Exclusive = true
+	default:
+		delete(screen.regions, address)
 	}
 
 	if message.Text != nil {
@@ -145,13 +170,26 @@ func (screen *Screen) Put(message *messages.Put) bool {
 				continue
 			}
 
-			if !screen.SetGlyph(x+message.X, y+message.Y, string(char)) {
+			x += message.X
+			y += message.Y
+
+			if !screen.SetGlyph(x, y, string(char)) {
 				offscreen = true
+			} else {
+				if y >= region.Rows {
+					region.Rows = y + 1
+				}
+
+				if x >= region.Columns {
+					region.Columns = x + 1
+				}
 			}
 
 			i++
 		}
 	}
+
+	screen.regions[address] = region
 
 	if message.Foreground != nil {
 		for y := 0; y < rows; y++ {
@@ -233,4 +271,16 @@ func (screen *Screen) Resize(width, height int) (int, int) {
 	screen.colors = colors
 
 	return columns, rows
+}
+
+func (screen *Screen) Clear(x int, y int, rows int, columns int) {
+	for i := 0; i < rows; i++ {
+		for j := 0; j < columns; j++ {
+			screen.attrs[(x+j)+(y+i)*screen.columns] = AttrEmpty
+		}
+	}
+}
+
+func (screen *Screen) getRegionID(x int, y int) string {
+	return strconv.Itoa(x) + ":" + strconv.Itoa(y)
 }

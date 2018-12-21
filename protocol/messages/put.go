@@ -16,7 +16,7 @@ type Put struct {
 	Text       *string
 
 	Tick      *int
-	Exclusive *bool
+	Exclusive bool
 }
 
 func (message *Put) Tag() string {
