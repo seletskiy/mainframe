@@ -271,10 +271,6 @@ func (engine *Engine) createWindow(
 		overrideRedirect(window)
 	}
 
-	if !options.Hidden && (options.Raw || position) {
-		window.Show()
-	}
-
 	context := NewContext()
 
 	window.SetCharModsCallback(
@@ -308,6 +304,8 @@ func (engine *Engine) createWindow(
 
 	window.MakeContextCurrent()
 
+	engine.clear()
+
 	gl.Enable(gl.DEBUG_OUTPUT)
 	gl.DebugMessageCallback(engine.debug, nil)
 
@@ -316,7 +314,16 @@ func (engine *Engine) createWindow(
 	engine.contexts.last++
 	engine.contexts.handles[engine.contexts.last] = context
 
+	if !options.Hidden && (options.Raw || position) {
+		window.Show()
+	}
+
 	return context
+}
+
+func (engine *Engine) clear() {
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.ClearColor(0, 0, 0, 1)
 }
 
 func (engine *Engine) render(context *Context) error {
@@ -339,8 +346,7 @@ func (engine *Engine) render(context *Context) error {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	gl.ClearColor(0, 0, 0, 1)
+	engine.clear()
 
 	var (
 		glyphWidth  = engine.font.handle.Meta.Width
