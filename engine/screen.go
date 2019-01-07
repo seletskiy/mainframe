@@ -17,6 +17,8 @@ const (
 )
 
 type Screen struct {
+	sync.Mutex
+
 	font *fonts.Font
 
 	width   int
@@ -30,90 +32,61 @@ type Screen struct {
 
 	regions map[string]ScreenRegion
 
-	lock sync.Mutex
+	render func(*Screen)
 }
 
-func NewScreen(width, height int, font *fonts.Font) *Screen {
+func NewScreen(
+	width,
+	height int,
+	font *fonts.Font,
+	render func(*Screen),
+) *Screen {
 	var (
 		columns = width / font.Meta.Width
 		rows    = height / font.Meta.Height
 	)
 
-	return &Screen{
-		width:   width,
-		height:  height,
+	screen := &Screen{
+		width:  width,
+		height: height,
+
 		columns: columns,
 		rows:    rows,
-		font:    font,
-		cells:   make([]int32, 2*rows*columns),
-		attrs:   make([]int32, rows*columns),
-		colors:  make([]int32, 2*rows*columns),
+
+		font: font,
+
+		cells:  make([]int32, rows*columns*2),
+		attrs:  make([]int32, rows*columns),
+		colors: make([]int32, rows*columns*2),
 
 		regions: make(map[string]ScreenRegion),
-	}
-}
 
-func (screen *Screen) SetGlyph(x, y int, char string) bool {
-	if x >= screen.columns {
-		return false
+		render: render,
 	}
 
-	if y >= screen.rows {
-		return false
-	}
-
-	glyph := screen.font.Glyphs[char]
-	if glyph == nil {
-		// TODO: draw some missing char
-		return true
-	}
-
-	pos := x + y*screen.columns
-
-	screen.cells[pos*2] = int32(glyph.Column)
-	screen.cells[pos*2+1] = int32(glyph.Row)
-	screen.attrs[pos] |= AttrGlyph
-
-	return true
+	return screen
 }
 
 func (screen *Screen) SetForeground(x, y int, fg *color.RGBA) bool {
-	if x >= screen.columns {
-		return false
-	}
+	screen.Lock()
+	defer screen.Unlock()
+	defer screen.Render()
 
-	if y >= screen.rows {
-		return false
-	}
-
-	pos := x + y*screen.columns
-
-	screen.colors[pos*2] = int32(fg.R)<<16 + int32(fg.G)<<8 + int32(fg.B)
-	screen.attrs[pos] |= AttrForeground
-
-	return true
+	return screen.setForeground(x, y, fg)
 }
 
-func (screen *Screen) SetBackground(x, y int, bg *color.RGBA) bool {
-	if x >= screen.columns {
-		return false
-	}
+func (screen *Screen) SetBackground(x int, y int, bg *color.RGBA) bool {
+	screen.Lock()
+	defer screen.Unlock()
+	defer screen.Render()
 
-	if y >= screen.rows {
-		return false
-	}
-
-	pos := x + y*screen.columns
-
-	screen.colors[pos*2+1] = int32(bg.R)<<16 + int32(bg.G)<<8 + int32(bg.B)
-	screen.attrs[pos] |= AttrBackground
-
-	return true
+	return screen.setBackground(x, y, bg)
 }
 
 func (screen *Screen) Put(message *messages.Put) bool {
-	screen.lock.Lock()
-	defer screen.lock.Unlock()
+	screen.Lock()
+	defer screen.Unlock()
+	defer screen.Render()
 
 	var (
 		address = screen.getRegionID(message.X, message.Y)
@@ -121,7 +94,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	)
 
 	if region.Exclusive {
-		screen.Clear(message.X, message.Y, region.Rows, region.Columns)
+		screen.clear(message.X, message.Y, region.Rows, region.Columns)
 
 		region.Exclusive = false
 	}
@@ -173,7 +146,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 			x += message.X
 			y += message.Y
 
-			if !screen.SetGlyph(x, y, string(char)) {
+			if !screen.set(x, y, string(char)) {
 				offscreen = true
 			} else {
 				if y >= region.Rows {
@@ -194,7 +167,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	if message.Foreground != nil {
 		for y := 0; y < rows; y++ {
 			for x := 0; x < columns; x++ {
-				if !screen.SetForeground(
+				if !screen.setForeground(
 					x+message.X,
 					y+message.Y,
 					message.Foreground,
@@ -208,7 +181,7 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	if message.Background != nil {
 		for y := 0; y < rows; y++ {
 			for x := 0; x < columns; x++ {
-				if !screen.SetBackground(
+				if !screen.setBackground(
 					x+message.X,
 					y+message.Y,
 					message.Background,
@@ -222,13 +195,21 @@ func (screen *Screen) Put(message *messages.Put) bool {
 	return !offscreen
 }
 
-func (screen *Screen) GetSize() int {
+func (screen *Screen) GetSize() (int, int) {
+	return screen.width, screen.height
+}
+
+func (screen *Screen) GetGrid() (int, int) {
+	return screen.columns, screen.rows
+}
+
+func (screen *Screen) GetArea() int {
 	return screen.columns * screen.rows
 }
 
 func (screen *Screen) Resize(width, height int) (int, int) {
-	screen.lock.Lock()
-	defer screen.lock.Unlock()
+	screen.Lock()
+	defer screen.Unlock()
 
 	var (
 		columns = width / screen.font.Meta.Width
@@ -270,17 +251,114 @@ func (screen *Screen) Resize(width, height int) (int, int) {
 	screen.attrs = attrs
 	screen.colors = colors
 
-	return columns, rows
+	return rows, columns
 }
 
-func (screen *Screen) Clear(x int, y int, rows int, columns int) {
+func (screen *Screen) Clear(x int, y int, rows int, columns int) bool {
+	screen.Lock()
+	defer screen.Unlock()
+	defer screen.Render()
+
+	return screen.clear(x, y, rows, columns)
+}
+
+func (screen *Screen) Render() {
+	screen.render(screen)
+}
+
+func (screen *Screen) clear(x int, y int, rows int, columns int) bool {
+	var offscreen bool
+
 	for i := 0; i < rows; i++ {
 		for j := 0; j < columns; j++ {
+			if x+j >= screen.columns {
+				offscreen = true
+				continue
+			}
+
+			if y+i >= screen.rows {
+				offscreen = true
+				continue
+			}
+
 			screen.attrs[(x+j)+(y+i)*screen.columns] = AttrEmpty
 		}
 	}
+
+	return offscreen
+
+}
+
+func (screen *Screen) GetCells() []int32 {
+	return screen.cells
+}
+
+func (screen *Screen) GetAttrs() []int32 {
+	return screen.attrs
+}
+
+func (screen *Screen) GetColors() []int32 {
+	return screen.colors
 }
 
 func (screen *Screen) getRegionID(x int, y int) string {
 	return strconv.Itoa(x) + ":" + strconv.Itoa(y)
+}
+
+func (screen *Screen) set(x, y int, char string) bool {
+	if x >= screen.columns {
+		return false
+	}
+
+	if y >= screen.rows {
+		return false
+	}
+
+	glyph := screen.font.Glyphs[char]
+	if glyph == nil {
+		// TODO: draw some missing char
+		return true
+	}
+
+	pos := x + y*screen.columns
+
+	screen.cells[pos*2] = int32(glyph.Column)
+	screen.cells[pos*2+1] = int32(glyph.Row)
+	screen.attrs[pos] |= AttrGlyph
+
+	return true
+}
+
+func (screen *Screen) setForeground(x int, y int, fg *color.RGBA) bool {
+	if x >= screen.columns {
+		return false
+	}
+
+	if y >= screen.rows {
+		return false
+	}
+
+	pos := x + y*screen.columns
+
+	screen.colors[pos*2] = int32(fg.R)<<16 + int32(fg.G)<<8 + int32(fg.B)
+	screen.attrs[pos] |= AttrForeground
+
+	return true
+}
+
+func (screen *Screen) setBackground(x, y int, bg *color.RGBA) bool {
+	if x >= screen.columns {
+		return false
+	}
+
+	if y >= screen.rows {
+		return false
+	}
+
+	pos := x + y*screen.columns
+
+	screen.colors[pos*2+1] = int32(bg.R)<<16 + int32(bg.G)<<8 + int32(bg.B)
+	screen.attrs[pos] |= AttrBackground
+
+	return true
 }

@@ -14,19 +14,17 @@ const (
 )
 
 type Context struct {
+	Window *glfw.Window
+	Screen *Screen
+
 	vao  uint32
 	tick int64
-
-	window *glfw.Window
-	screen *Screen
 
 	subscriptions struct {
 		sync.Mutex
 
 		clients map[int][]*Client
 	}
-
-	lastRune rune
 }
 
 func NewContext() *Context {
@@ -45,8 +43,9 @@ func (context *Context) Subscribe(client *Client, subscription int) {
 }
 
 func (context *Context) Resize(width, height int) {
-	columns, rows := context.screen.Resize(width, height)
+	rows, columns := context.Screen.Resize(width, height)
 
+	// TODO move out of render loop
 	subscribers := context.subscriptions.clients[SubscriptionResize]
 	for _, client := range subscribers {
 		client.Send(&messages.EventResize{
@@ -116,7 +115,8 @@ func (context *Context) Key(
 }
 
 func (context *Context) Close() {
-	if context.window != nil {
-		context.window.SetShouldClose(true)
+	if context.Window != nil {
+		context.Window.SetShouldClose(true)
+		context.Screen.Render()
 	}
 }

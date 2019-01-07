@@ -3,6 +3,7 @@ package engine
 import (
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -18,6 +19,11 @@ const (
 	DefaultWindowWidth  = 640
 	DefaultWindowHeight = 480
 )
+
+type Delegate struct {
+	barrier  chan struct{}
+	callback func()
+}
 
 type Engine struct {
 	vertices struct {
@@ -37,9 +43,11 @@ type Engine struct {
 		fragment uint32
 	}
 
-	contexts struct {
-		last    uint32
-		handles map[uint32]*Context
+	contexts map[*Screen]*Context
+
+	queue struct {
+		sync.Mutex
+		screens map[*Screen]bool
 	}
 
 	font struct {
@@ -49,23 +57,20 @@ type Engine struct {
 
 	log lorg.Logger
 
-	delegates chan struct {
-		barrier  chan struct{}
-		callback func()
-	}
+	delegates chan Delegate
 
 	running bool
 }
 
 func New(log lorg.Logger) *Engine {
-	engine := &Engine{}
+	engine := &Engine{
+		log: log,
 
-	engine.log = log
-	engine.contexts.handles = map[uint32]*Context{}
-	engine.delegates = make(chan struct {
-		barrier  chan struct{}
-		callback func()
-	}, 0)
+		delegates: make(chan Delegate, 0),
+	}
+
+	engine.contexts = map[*Screen]*Context{}
+	engine.queue.screens = map[*Screen]bool{}
 
 	return engine
 }
@@ -126,6 +131,7 @@ func (engine *Engine) CreateWindow(options *messages.Open) (*Context, error) {
 	// need to send them to main engine thread to execute.
 	engine.delegate(
 		func() {
+			// TODO return error
 			context = engine.createWindow(width, height, options)
 		},
 	)
@@ -139,41 +145,43 @@ func (engine *Engine) CreateWindow(options *messages.Open) (*Context, error) {
 	return context, nil
 }
 
+func (engine *Engine) Render(screen *Screen) {
+	engine.queue.Lock()
+	engine.queue.screens[screen] = true
+	engine.queue.Unlock()
+
+	glfw.PostEmptyEvent()
+}
+
 func (engine *Engine) Running() bool {
 	return engine.running
 }
 
-func (engine *Engine) Render() error {
+func (engine *Engine) Loop() error {
 	// When there are nothing to draw, we just wait for new window to create.
-	if len(engine.contexts.handles) == 0 {
+	if len(engine.contexts) == 0 {
 		delegate := <-engine.delegates
 		delegate.callback()
 		delegate.barrier <- struct{}{}
 	} else {
+		engine.queue.Lock()
+		for screen, _ := range engine.queue.screens {
+			delete(engine.queue.screens, screen)
+
+			engine.render(screen)
+		}
+		engine.queue.Unlock()
+
 		select {
 		case delegate := <-engine.delegates:
 			delegate.callback()
 			delegate.barrier <- struct{}{}
 		default:
+			glfw.WaitEvents()
 		}
 	}
 
-	for handle, context := range engine.contexts.handles {
-		context.tick = time.Now().UnixNano() / int64(time.Microsecond)
-
-		if context.window.ShouldClose() {
-			context.window.Destroy()
-			delete(engine.contexts.handles, handle)
-			continue
-		}
-
-		err := engine.render(context)
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(engine.contexts.handles) == 0 {
+	if len(engine.contexts) == 0 {
 		engine.free()
 	}
 
@@ -195,10 +203,6 @@ func (engine *Engine) Stop() {
 	})
 }
 
-func (engine *Engine) GetContext(handle uint32) *Context {
-	return engine.contexts.handles[handle]
-}
-
 func (engine *Engine) createWindow(
 	width,
 	height int,
@@ -208,6 +212,7 @@ func (engine *Engine) createWindow(
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+	glfw.WindowHint(glfw.DoubleBuffer, glfw.False)
 
 	var position bool
 
@@ -246,8 +251,8 @@ func (engine *Engine) createWindow(
 	}
 
 	var parent *glfw.Window
-	for _, context := range engine.contexts.handles {
-		parent = context.window
+	for _, context := range engine.contexts {
+		parent = context.Window
 		break
 	}
 
@@ -272,6 +277,13 @@ func (engine *Engine) createWindow(
 	}
 
 	context := NewContext()
+	context.Window = window
+	context.Screen = NewScreen(
+		width,
+		height,
+		engine.font.handle,
+		engine.Render,
+	)
 
 	window.SetCharModsCallback(
 		func(
@@ -295,24 +307,36 @@ func (engine *Engine) createWindow(
 		},
 	)
 
-	context.window = window
-	context.screen = NewScreen(
-		width,
-		height,
-		engine.font.handle,
+	window.SetRefreshCallback(
+		func(
+			_ *glfw.Window,
+		) {
+			err := engine.render(context.Screen)
+			if err != nil {
+				panic(err)
+			}
+		},
 	)
 
+	//window.SetCloseCallback(
+	//    func(
+	//        _ *glfw.Window,
+	//    ) {
+	//        fmt.Fprintln(os.Stderr, "XXXXXX engine.go:308  CLOSE")
+	//    },
+	//)
+
 	window.MakeContextCurrent()
+
+	glfw.SwapInterval(0)
 
 	engine.clear()
 
 	gl.Enable(gl.DEBUG_OUTPUT)
 	gl.DebugMessageCallback(engine.debug, nil)
-
 	gl.GenVertexArrays(1, &context.vao)
 
-	engine.contexts.last++
-	engine.contexts.handles[engine.contexts.last] = context
+	engine.contexts[context.Screen] = context
 
 	if !options.Hidden && (options.Raw || position) {
 		window.Show()
@@ -321,13 +345,30 @@ func (engine *Engine) createWindow(
 	return context
 }
 
-func (engine *Engine) clear() {
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	gl.ClearColor(0, 0, 0, 1)
-}
+func (engine *Engine) render(screen *Screen) error {
+	context := engine.contexts[screen]
 
-func (engine *Engine) render(context *Context) error {
-	context.window.MakeContextCurrent()
+	context.tick = time.Now().UnixNano() / int64(time.Microsecond)
+
+	if context.Window.ShouldClose() {
+		context.Window.Destroy()
+		delete(engine.contexts, context.Screen)
+		return nil
+	}
+
+	var (
+		windowWidth, windowHeight = context.Window.GetSize()
+		screenWidth, screenHeight = context.Screen.GetSize()
+	)
+
+	if windowWidth != screenWidth || windowHeight != screenHeight {
+		context.Resize(windowWidth, windowHeight)
+	}
+
+	screen.Lock()
+	defer screen.Unlock()
+
+	context.Window.MakeContextCurrent()
 
 	err := engine.initShaders()
 	if err != nil {
@@ -353,15 +394,9 @@ func (engine *Engine) render(context *Context) error {
 		glyphHeight = engine.font.handle.Meta.Height
 	)
 
-	width, height := context.window.GetSize()
+	gl.Viewport(0, 0, int32(windowWidth), int32(windowHeight))
 
-	if context.screen.width != width || context.screen.height != height {
-		context.Resize(width, height)
-	}
-
-	gl.Viewport(0, 0, int32(width), int32(height))
-
-	gl.Uniform2i(0, int32(width), int32(height))
+	gl.Uniform2i(0, int32(windowWidth), int32(windowHeight))
 	gl.Uniform2i(1, int32(glyphWidth), int32(glyphHeight))
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.triangles)
@@ -371,8 +406,8 @@ func (engine *Engine) render(context *Context) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.glyphs)
 	gl.BufferData(
 		gl.ARRAY_BUFFER,
-		4*len(context.screen.cells),
-		gl.Ptr(context.screen.cells),
+		4*len(context.Screen.GetCells()),
+		gl.Ptr(context.Screen.GetCells()),
 		gl.DYNAMIC_DRAW,
 	)
 	gl.VertexAttribIPointer(1, 2, gl.INT, 2*4, gl.PtrOffset(0))
@@ -382,8 +417,8 @@ func (engine *Engine) render(context *Context) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.attributes)
 	gl.BufferData(
 		gl.ARRAY_BUFFER,
-		4*len(context.screen.attrs),
-		gl.Ptr(context.screen.attrs),
+		4*len(context.Screen.GetAttrs()),
+		gl.Ptr(context.Screen.GetAttrs()),
 		gl.DYNAMIC_DRAW,
 	)
 	gl.VertexAttribIPointer(2, 1, gl.INT, 1*4, gl.PtrOffset(0))
@@ -393,8 +428,8 @@ func (engine *Engine) render(context *Context) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, engine.vertices.buffers.colors)
 	gl.BufferData(
 		gl.ARRAY_BUFFER,
-		4*len(context.screen.colors),
-		gl.Ptr(context.screen.colors),
+		4*len(context.Screen.GetColors()),
+		gl.Ptr(context.Screen.GetColors()),
 		gl.DYNAMIC_DRAW,
 	)
 	gl.VertexAttribIPointer(3, 2, gl.INT, 2*4, gl.PtrOffset(0))
@@ -405,13 +440,17 @@ func (engine *Engine) render(context *Context) error {
 		gl.TRIANGLE_STRIP,
 		0,
 		6,
-		int32(context.screen.GetSize()),
+		int32(context.Screen.GetArea()),
 	)
 
-	glfw.PollEvents()
-	context.window.SwapBuffers()
+	gl.Finish()
 
 	return nil
+}
+
+func (engine *Engine) clear() {
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.ClearColor(0, 0, 0, 1)
 }
 
 func (engine *Engine) initTextures() error {
@@ -554,11 +593,9 @@ func (engine *Engine) free() {
 func (engine *Engine) delegate(callback func()) {
 	barrier := make(chan struct{}, 1)
 
-	engine.delegates <- struct {
-		barrier  chan struct{}
-		callback func()
-	}{
-		barrier, callback,
+	engine.delegates <- Delegate{
+		barrier,
+		callback,
 	}
 
 	<-barrier

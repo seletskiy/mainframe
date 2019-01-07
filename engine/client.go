@@ -42,6 +42,12 @@ func (client *Client) Serve() {
 
 		case *messages.Get:
 			err = client.handleGet(message)
+
+		case *messages.Reshape:
+			err = client.handleReshape(message)
+
+		case *messages.Clear:
+			err = client.handleClear(message)
 		}
 
 		if err != nil {
@@ -62,7 +68,7 @@ func (client *Client) Send(message messages.Serializable) error {
 	_, err := client.Connection.Write([]byte(text.Serialize(message)))
 	if err != nil {
 		return karma.
-			Describe("message", message).
+			Describe("message", message.Serialize()).
 			Format(
 				err,
 				"unable to send message to client",
@@ -81,7 +87,7 @@ func (client *Client) Error(err error) error {
 func (client *Client) handlePut(message *messages.Put) error {
 	var reply messages.OK
 
-	if !client.Context.screen.Put(message) {
+	if !client.Context.Screen.Put(message) {
 		reply.Set("offscreen", true)
 	}
 
@@ -132,6 +138,80 @@ func (client *Client) handleGet(message *messages.Get) error {
 		reply.Set("width", font.Meta.Width)
 		reply.Set("height", font.Meta.Height)
 	}
+
+	return client.Send(&reply)
+}
+
+func (client *Client) handleReshape(message *messages.Reshape) error {
+	var reply messages.OK
+
+	font := client.Engine.GetFont()
+
+	var (
+		width  int
+		height int
+	)
+
+	if message.Width != nil {
+		width = *message.Width
+	}
+
+	if message.Height != nil {
+		height = *message.Height
+	}
+
+	if message.Columns != nil {
+		width = *message.Columns * font.Meta.Width
+	}
+
+	if message.Rows != nil {
+		height = *message.Rows * font.Meta.Height
+	}
+
+	if message.X != nil && message.Y != nil {
+		client.Context.Window.SetPos(*message.X, *message.Y)
+	}
+
+	if width > 0 && height > 0 {
+		client.Context.Window.SetSize(width, height)
+		client.Context.Resize(width, height)
+	}
+
+	return client.Send(&reply)
+}
+
+func (client *Client) handleClear(message *messages.Clear) error {
+	var reply messages.OK
+
+	var (
+		x int
+		y int
+
+		rows    int
+		columns int
+	)
+
+	if message.X != nil {
+		x = *message.X
+	}
+
+	if message.Y != nil {
+		y = *message.Y
+	}
+
+	if message.Rows != nil {
+		rows = *message.Rows
+	} else {
+		rows = client.Context.Screen.rows
+	}
+
+	if message.Columns != nil {
+		columns = *message.Columns
+	} else {
+		_, columns = client.Context.Screen.GetGrid()
+	}
+
+	client.Context.Screen.Clear(x, y, rows, columns)
 
 	return client.Send(&reply)
 }

@@ -1,11 +1,7 @@
 package messages
 
 type Open struct {
-	Width  *int
-	Height *int
-
-	Rows    *int
-	Columns *int
+	*Size
 
 	X *int
 	Y *int
@@ -24,11 +20,7 @@ func (Open) Tag() string {
 }
 
 func (message *Open) Serialize() []Arg {
-	return []Arg{
-		{"width", message.Width},
-		{"height", message.Height},
-		{"rows", message.Rows},
-		{"columns", message.Columns},
+	args := []Arg{
 		{"x", message.X},
 		{"y", message.Y},
 		{"title", message.Title},
@@ -38,4 +30,10 @@ func (message *Open) Serialize() []Arg {
 		{"bare", message.Bare},
 		{"floating", message.Floating},
 	}
+
+	if message.Size != nil {
+		args = append(args, message.Size.Serialize()...)
+	}
+
+	return args
 }

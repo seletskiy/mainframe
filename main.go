@@ -9,7 +9,6 @@ import (
 	"runtime/pprof"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/docopt/docopt-go"
 	"github.com/kovetskiy/lorg"
@@ -124,24 +123,11 @@ func listen(opts Opts) {
 		log.Fatal(err)
 	}
 
-	var (
-		notch = time.Now()
-		fps   = 0
-	)
-
 	for engine.Running() {
-		if time.Now().Sub(notch) > time.Second {
-			log.Tracef("FPS: %d", fps)
-			fps = 0
-			notch = time.Now()
-		}
-
-		err := engine.Render()
+		err := engine.Loop()
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		fps++
 	}
 }
 
