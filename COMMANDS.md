@@ -1,27 +1,81 @@
 # Commands
 
+* [Session commands](#window-commands)
+   * [`get`: retrieve various mainframe information](#get)
+      * [Request](#get-request)
+      * [Response](#get-response)
+* [Window commands](#window-commands)
+   * [`open`: opens new window and binds session to it](#open)
+      * [Request](#open-request)
+      * [Response](#open-response)
+   * [`reshape`: change window position and/or size](#reshape)
+      * [Request](#reshape-request)
+      * [Response](#reshape-response)
+* [Output commands](#output-commands)
+   * [`clear`: clear cells on screen](#clear)
+      * [Request](#clear-request)
+      * [Response](#clear-response)
+   * [`put`: assign text, fg or bg color to cells on screen](#put)
+      * [Request](#put-request)
+      * [Response](#put-response)
+      * [Example: draw vim-like line numbers column](#put-example-1)
+   * [`subscribe`: subscribe on given events](#subscribe)
+      * [Request](#subscribe-request)
+      * [Response](#subscribe-response)
+
+## Legend
+
 Following syntax is used to describe commands:
 
 * `[x]` — `x` or nothing.
 * `(x|y)` — `x` or `y`.
+* `[x|y]` — `x` or `y` or nothing.
 * `([x] [y])` — `x` or `y` or `x y`.
-* `([x]|[y])` — `x` or `y` or nothing.
+* `<x>...` — placeholder for any arguments.
 
-## Window commands
+## <a id="session-commands"> Session commands
 
-### `open`: opens new window and binds session to it
+### <a id="get"> `get`: retrieve various mainframe information
 
-#### Request
+#### <a id="get-request"> Request
 
 ```
-open ([width: 640 height: 480]|[columns: 80 rows: 20]) [x: 1 y: 2] [title: "string"] [raw] [hidden] [fixed] [bare] [floating]
+get <options>...
 ```
 
+See following sections for each option.
+
+### <a id="get-font"> `get font`: retrieve font information
+
+#### <a id="get-font-request"> Request
+
+```
+get font
+```
+
+#### <a id="get-font-response"> Response
+
+```
+ok width: 8 height: 18
+```
+
+## <a id="window-commands"> Window commands
+
+### <a id="open"> `open`: opens new window and binds session to it
+
+#### <a id="open-request"> Request
+
+```
+open [width: 640 height: 480|columns: 80 rows: 20] [x: 1 y: 2] [title: "string"] [raw] [hidden] [fixed] [bare] [floating]
+```
+
+* when used in new open connection to mainframe `open` will bind created window
+  to this connection, so all further commands can be used without need to
+  specify window ID.
 * `open` without arguments will open window with default size;
 * `width` and `height` can be used to specify window size in pixels;
 * `columns` and `rows` can be used to specify window size using current font size;
-* `x` and `y` specify position of newly created window;
-* if tiling WM is used, then size and poosition arguments will be ignored
+* if tiling WM is used, then size and position arguments will be ignored
   unless window is made floating via WM configuration or `raw` option is
   specified;
 * `raw` creates window that completely ignored by WM;
@@ -29,26 +83,69 @@ open ([width: 640 height: 480]|[columns: 80 rows: 20]) [x: 1 y: 2] [title: "stri
 * `hidden` creates window that should be shown to be displayed;
 * `bare` specify that window should be created without any WM decorations (e.g. no borders);
 
-#### Response
+#### <a id="open-args"> Arguments
+
+| Argument | Type   | Description                                             |
+| :------- | :---   | :----------                                             |
+| width    | int    | Width of window in pixels.                              |
+| height   | int    | Height of window in pixels.                             |
+| columns  | int    | Width of window in columns (based on font width).       |
+| rows     | int    | Height of window in rows (based on font height).        |
+| x        | int    | Onscreen position of window in pixels.                  |
+| y        | int    | Onscreen position of window in pixels.                  |
+| title    | string | Title for window.                                       |
+| raw      | bool   | Create window that is not managed by WM.                |
+| hidden   | bool   | Create hidden window that need to be shown with `show`. |
+| fixed    | bool   | Create fixed size window.                               |
+| bare     | bool   | Create window without WM decorations.                   |
+| floating | bool   | Create floating window (WM specific).                   |
+
+#### <a id="open-response"> Response
 
 ```
 ok id: 123
 ```
 
 * `id` can be used for other window manipulation commands;
-
-#### Notes
-
 * after window is open all further commands will operate on this window by
   default;
 * if client closes connection, all open windows that were opened via this
   connection will be closed;
 
-## Output commands
+---
 
-### `clear`: clear cells on screen
+### <a id="reshape"> `reshape`: change window position and/or size
 
-#### Request
+#### <a id="reshape-request"> Request
+
+```
+reshape ([width: 640 height: 480|columns: 80 rows: 20] [x: 1 y: 2])
+```
+
+* `reshape` can be used to move and resize window in single command;
+
+#### <a id="reshape-args"> Arguments
+
+| Argument | Type | Description                                                    |
+| :------- | :--- | :----------                                                    |
+| width    | int  | Target window width in pixels.                                 |
+| height   | int  | Target window height in pixels.                                |
+| columns  | int  | Target window width in cell columns (based on font width).     |
+| rows     | int  | Target window height size in cell rows (based on font height). |
+| x        | int  | Onscreen position of window in pixels.                         |
+| y        | int  | Onscreen position of window in pixels.                         |
+
+#### <a id="reshape-response"> Response
+
+```
+ok
+```
+
+## <a id="output-commands"> Output commands
+
+### <a id="clear"> `clear`: clear cells on screen
+
+#### <a id="clear-request"> Request
 
 ```
 clear [x: 1 y: 2 [columns: 80] [rows: 20]]
@@ -58,7 +155,16 @@ clear [x: 1 y: 2 [columns: 80] [rows: 20]]
 * `clear x: 1 y: 2` will clear single cell at position `(1; 2)`;
 * full form will clear specified area;
 
-#### Response
+#### <a id="clear-args"> Arguments
+
+| Argument | Type | Description                                        |
+| :------- | :--- | :----------                                        |
+| x        | int  | Column coordinate of first cell to clear.          |
+| y        | int  | Row coordinate of first cell to clear.             |
+| columns  | int  | Amount of columns to clear (including first cell). |
+| rows     | int  | Amount of rows to clear (including first cell).    |
+
+#### <a id="clear-response"> Response
 
 ```
 ok [offscreen]
@@ -67,9 +173,11 @@ ok [offscreen]
 * `offscreen` flag will be in response if request attempts to clear cells
    outside of screen;
 
-### `put`: assign text, fg or bg color to cells on screen
+---
 
-#### Request
+### <a id="put"> `put`: assign text, fg or bg color to cells on screen
+
+#### <a id="put-request"> Request
 
 ```
 put x: 1 y: 2 [columns: 80] [rows: 20] ([fg: #ff0] [bg: #f00] [text: "string"]) [tick: 123] [exclusive]
@@ -87,8 +195,23 @@ put x: 1 y: 2 [columns: 80] [rows: 20] ([fg: #ff0] [bg: #f00] [text: "string"]) 
 * if `columns` and `rows` is not specified, then `rows` is assumed to be `1`
   and `columns` to be equal to length of given `text`; if `text` is not given,
   then `put` will only change single specified cell;
+* text may contain `\n` to put following text to next row;
 
-#### Response
+#### <a id="put-args"> Arguments
+
+| Argument  | Type   | Description                                                                                                               |
+| :-------  | :---   | :----------                                                                                                               |
+| x         | int    | Column coordinate of first cell.                                                                                          |
+| y         | int    | Row coordinate of first cell.                                                                                             |
+| columns   | int    | Maximum number of columns this operation will touch.                                                                      |
+| rows      | int    | Maximum number of rows this operation can touch.                                                                          |
+| fg        | color  | New foreground color for cells (e.g. text color).                                                                         |
+| bg        | color  | New background color for cells.                                                                                           |
+| text      | string | Text to put in cells. Text will be wrapped to next row if rows specified or trimmed otherwise.                            |
+| exclusive | bool   | Mark region of cells `(x, y, x+columns, y+rows)` as exclusive, which will be cleared when cell `(x, y)` will be modified. |
+| tick      | int    | *Not implemented.*                                                                                                        |
+
+#### <a id="put-response"> Response
 
 ```
 ok [offscreen] [overflow]
@@ -99,15 +222,20 @@ ok [offscreen] [overflow]
 * `overflow` flag will be in response if given `text` can't be fit in specified
   area;
 
-##### Example: draw vim-like line-number column
+#### <a id="put-example-1"> Example: draw vim-like line numbers column
 
 ```
 put x: 0 y: 0 columns: 2 rows: 15 text: " 1 2 3 4 5 6 7 8 9101112131415" bg: #333
 ```
 
-### `subscribe`: subscribe on given events
+Note: because of columns is specified to `2` given `text` will be wrapped after
+every `2` characters.
 
-#### Request
+---
+
+### <a id="subscribe"> `subscribe`: subscribe on given events
+
+#### <a id="subscribe-request"> Request
 
 ```
 subscribe ([keyboard] [input] [resize])
@@ -121,7 +249,7 @@ subscribe ([keyboard] [input] [resize])
 * after subscription it is still possible to send other commands;
 * see [EVENTS.md](EVENTS.md) for full description of received events;
 
-#### Response
+#### <a id="subscribe-response"> Response
 
 ```
 ok

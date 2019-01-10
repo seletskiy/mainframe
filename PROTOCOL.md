@@ -1,10 +1,14 @@
-# Text Protocol Design
+# Protocol
 
 Protocol is:
 * full-duplex
 * request-response.
 
-## Format
+Protocol can be used in text or binary form. Only text form is supported now.
+
+## Text Protocol
+
+### Format
 
 * Protocol is line oriented: messages are separated by `\n`.
 * Message consists of message tag followed by optional body.
@@ -19,18 +23,16 @@ Protocol is:
 
 See [COMMANDS.md](COMMANDS.md) for examples of this format.
 
-## General
+### General
 
-All successfull responses for commands that does not return value start from
-`ok`.
-
-All successfull responses contain `tick: 123` which specify tick on
-which response was generated.
+All successfull responses for commands starts from `ok`.
 
 All error messages will be in form `error message: "text"`.
 
-## Ticks
+### Ticks
+
+Some commands return `tick` value in their response.
 
 Tick is UNIX timestamp with microsecond precision.
 
-Tick is same for all windows on same render interation.
+Tick is generated on render event for each window separately.

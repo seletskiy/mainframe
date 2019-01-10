@@ -33,8 +33,7 @@ windows, editor frontends and so on.
 
 `mainframe` differencies in comparison with typical terminals:
 
-* uses OpenGL and shaders to draw window contents, so pre-rasterized fonts
-  supported by now;
+* uses OpenGL and shaders to draw window contents;
 
 * any key can be captured with up to 4 active modifiers:
   `Ctrl+Shift+Alt+Super+Q`
@@ -54,31 +53,40 @@ windows, editor frontends and so on.
 
 # State of development
 
-`mainframe` is in very early development stage.
+`mainframe` is in very early development stage. However, it's already can be
+used as UI frontend for text applications.
 
 Currently implemented:
 
-- [x] loading simple bitmap font from image (current font is ugly);
+- [x] support for TFF fonts;
+
+- [x] lazy renderer, which will render windows only when contents changed;
 
 - [x] daemon mode (`listen` flag) which listens for commands on UNIX socket;
 
 - [x] rendering any number of windows from single daemon instance;
 
-- [x] executing specified commands (`exec` flag) with automatic window creation
+- [x] executing specified commands (`open` command) with automatic window creation
   and attaching running command by opening socket and passing it as file
   descriptor no. `3`;
 
-  For testing, use `mainframe exec -- socat FD:3 -` command to start
+  For testing, use `mainframe open -- socat FD:3 -` command to start
   interactive command mode.
 
 - [x] text protocol parser;
 
 - [x] error reporting back to connected client;
 
+- [x] `open` command to open new window;
+
+- [x] `reshape` command to resize/move window;
+
 - [x] `subscribe` command for event subscription and notification for window
   resize and keyboard input;
 
 - [x] partial `put` command for changing text, fg and bg colors;
+
+- [x] `clear` command for clearing parts of screen;
 
 # See also
 
