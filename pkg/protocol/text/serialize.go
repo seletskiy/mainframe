@@ -5,7 +5,7 @@ import (
 	"image/color"
 	"strconv"
 
-	"github.com/seletskiy/mainframe/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
 )
 
 func Serialize(message messages.Serializable) []byte {

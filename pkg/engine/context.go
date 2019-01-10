@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/go-gl/glfw/v3.2/glfw"
-	"github.com/seletskiy/mainframe/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
 )
 
 const (

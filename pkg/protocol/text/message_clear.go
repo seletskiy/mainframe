@@ -3,7 +3,7 @@ package text
 import (
 	"fmt"
 
-	"github.com/seletskiy/mainframe/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
 )
 
 func parseClearMessage(

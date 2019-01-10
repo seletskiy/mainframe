@@ -3,29 +3,25 @@ package server
 import (
 	"net"
 
-	"github.com/apex/log"
-	"github.com/kovetskiy/lorg"
 	"github.com/reconquest/karma-go"
-	"github.com/seletskiy/mainframe/engine"
+	"github.com/seletskiy/mainframe/pkg/engine"
+	"github.com/seletskiy/mainframe/pkg/log"
 )
 
 type Listener struct {
 	listener net.Listener
 	closed   bool
-	log      lorg.Logger
 	engine   *engine.Engine
 }
 
 func Listen(
 	path string,
 	engine *engine.Engine,
-	log lorg.Logger,
 ) (*Listener, error) {
 	var err error
 
 	listener := Listener{
 		engine: engine,
-		log:    log,
 	}
 
 	listener.listener, err = net.Listen("unix", path)

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/seletskiy/mainframe/fonts"
-	"github.com/seletskiy/mainframe/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/fonts"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
 )
 
 const (

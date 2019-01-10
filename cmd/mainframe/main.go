@@ -11,14 +11,14 @@ import (
 	"syscall"
 
 	"github.com/docopt/docopt-go"
-	"github.com/kovetskiy/lorg"
 	"github.com/reconquest/karma-go"
 	"github.com/reconquest/sign-go"
-	"github.com/seletskiy/mainframe/engine"
-	"github.com/seletskiy/mainframe/fonts"
-	"github.com/seletskiy/mainframe/protocol/messages"
-	"github.com/seletskiy/mainframe/protocol/text"
-	"github.com/seletskiy/mainframe/server"
+	"github.com/seletskiy/mainframe/pkg/engine"
+	"github.com/seletskiy/mainframe/pkg/fonts"
+	"github.com/seletskiy/mainframe/pkg/log"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/protocol/text"
+	"github.com/seletskiy/mainframe/pkg/server"
 )
 
 var version = "1.0"
@@ -59,18 +59,11 @@ type Opts struct {
 	Separator bool `docopt:"--"`
 }
 
-var (
-	log *lorg.Log
-)
-
 func main() {
 	args, err := docopt.ParseArgs(usage, nil, "mainframe "+version)
 	if err != nil {
 		panic(err)
 	}
-
-	log = lorg.NewLog()
-	log.SetLevel(lorg.LevelTrace)
 
 	var opts Opts
 
@@ -109,9 +102,9 @@ func listen(opts Opts) {
 		panic(err)
 	}
 
-	engine := engine.New(log)
+	engine := engine.New()
 
-	listener, err := server.Listen(opts.Socket, engine, log)
+	listener, err := server.Listen(opts.Socket, engine)
 	if err != nil {
 		log.Fatal(err)
 	}

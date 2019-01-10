@@ -51,6 +51,12 @@ windows, editor frontends and so on.
 * does not in fact has cursor concept: any connected client can output anything
   in any position without blocking other clients;
 
+# Installation
+
+```
+go get github.com/seletskiy/mainframe/cmd/...
+```
+
 # State of development
 
 `mainframe` is in very early development stage. However, it's already can be

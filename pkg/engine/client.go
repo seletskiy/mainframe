@@ -5,8 +5,8 @@ import (
 	"net"
 
 	"github.com/reconquest/karma-go"
-	"github.com/seletskiy/mainframe/protocol/messages"
-	"github.com/seletskiy/mainframe/protocol/text"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/protocol/text"
 )
 
 type Client struct {

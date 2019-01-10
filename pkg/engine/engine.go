@@ -9,10 +9,10 @@ import (
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
-	"github.com/kovetskiy/lorg"
 	"github.com/reconquest/karma-go"
-	"github.com/seletskiy/mainframe/fonts"
-	"github.com/seletskiy/mainframe/protocol/messages"
+	"github.com/seletskiy/mainframe/pkg/fonts"
+	"github.com/seletskiy/mainframe/pkg/log"
+	"github.com/seletskiy/mainframe/pkg/protocol/messages"
 )
 
 const (
@@ -55,17 +55,13 @@ type Engine struct {
 		texture uint32
 	}
 
-	log lorg.Logger
-
 	delegates chan Delegate
 
 	running bool
 }
 
-func New(log lorg.Logger) *Engine {
+func New() *Engine {
 	engine := &Engine{
-		log: log,
-
 		delegates: make(chan Delegate, 0),
 	}
 
@@ -640,13 +636,13 @@ func (engine *Engine) debug(
 	message string,
 	userParam unsafe.Pointer,
 ) {
-	logger := engine.log.Warningf
+	logger := log.Warningf
 
 	switch kind {
 	case gl.DEBUG_TYPE_ERROR:
-		logger = engine.log.Errorf
+		logger = log.Errorf
 	case gl.DEBUG_TYPE_OTHER:
-		logger = engine.log.Tracef
+		logger = log.Tracef
 	}
 
 	logger(
