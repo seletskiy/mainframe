@@ -92,6 +92,10 @@ func main() {
 }
 
 func listen(opts Opts) {
+	if opts.Font == "" {
+		log.Fatal("font file should be specified")
+	}
+
 	font, err := fonts.Load(
 		opts.Font,
 		fonts.FontDPI(opts.FontDPI),
