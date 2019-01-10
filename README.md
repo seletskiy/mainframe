@@ -76,7 +76,7 @@ Currently implemented:
   and attaching running command by opening socket and passing it as file
   descriptor no. `3`;
 
-  For testing, use `mainframe open -- socat FD:3 -` command to start
+  For testing, use `mainframe open -- socat FD:3 readline` command to start
   interactive command mode.
 
 - [x] text protocol parser;
