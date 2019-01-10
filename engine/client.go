@@ -135,8 +135,8 @@ func (client *Client) handleGet(message *messages.Get) error {
 	case message.Font.Set:
 		font := client.Engine.GetFont()
 
-		reply.Set("width", font.Meta.Width)
-		reply.Set("height", font.Meta.Height)
+		reply.Set("width", font.GetWidth())
+		reply.Set("height", font.GetHeight())
 	}
 
 	return client.Send(&reply)
@@ -161,11 +161,11 @@ func (client *Client) handleReshape(message *messages.Reshape) error {
 	}
 
 	if message.Columns != nil {
-		width = *message.Columns * font.Meta.Width
+		width = *message.Columns * font.GetWidth()
 	}
 
 	if message.Rows != nil {
-		height = *message.Rows * font.Meta.Height
+		height = *message.Rows * font.GetHeight()
 	}
 
 	if message.X != nil && message.Y != nil {

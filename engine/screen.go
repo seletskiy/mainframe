@@ -42,8 +42,8 @@ func NewScreen(
 	render func(*Screen),
 ) *Screen {
 	var (
-		columns = width / font.Meta.Width
-		rows    = height / font.Meta.Height
+		columns = width / font.GetWidth()
+		rows    = height / font.GetHeight()
 	)
 
 	screen := &Screen{
@@ -212,8 +212,8 @@ func (screen *Screen) Resize(width, height int) (int, int) {
 	defer screen.Unlock()
 
 	var (
-		columns = width / screen.font.Meta.Width
-		rows    = height / screen.font.Meta.Height
+		columns = width / screen.font.GetWidth()
+		rows    = height / screen.font.GetHeight()
 
 		cells  = make([]int32, 2*rows*columns)
 		attrs  = make([]int32, rows*columns)

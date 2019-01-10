@@ -120,11 +120,11 @@ func (engine *Engine) CreateWindow(options *messages.Open) (*Context, error) {
 	}
 
 	if options.Columns != nil {
-		width = *options.Columns * engine.font.handle.Meta.Width
+		width = *options.Columns * engine.font.handle.GetWidth()
 	}
 
 	if options.Rows != nil {
-		height = *options.Rows * engine.font.handle.Meta.Height
+		height = *options.Rows * engine.font.handle.GetHeight()
 	}
 
 	// All GL commands should be evaluated in same system thread, so we
@@ -390,8 +390,8 @@ func (engine *Engine) render(screen *Screen) error {
 	engine.clear()
 
 	var (
-		glyphWidth  = engine.font.handle.Meta.Width
-		glyphHeight = engine.font.handle.Meta.Height
+		glyphWidth  = engine.font.handle.GetWidth()
+		glyphHeight = engine.font.handle.GetHeight()
 	)
 
 	gl.Viewport(0, 0, int32(windowWidth), int32(windowHeight))
@@ -646,7 +646,7 @@ func (engine *Engine) debug(
 	case gl.DEBUG_TYPE_ERROR:
 		logger = engine.log.Errorf
 	case gl.DEBUG_TYPE_OTHER:
-		logger = engine.log.Debugf
+		logger = engine.log.Tracef
 	}
 
 	logger(

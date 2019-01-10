@@ -28,26 +28,33 @@ var usage = `mainframe — terminal.
 Usage:
   terminal -h | --help
   terminal [options] [-s=<socket>] listen
-  terminal [options] [-s=<socket>] exec [--options=] -- <command>...
+  terminal [options] [-s=<socket>] open [--open-args=] -- <command>...
 
 Options:
-  -h --help             Show this help.
-  -s --socket <socket>  Path to control socket.
-                         [default: /tmp/mainframe.sock]
-  --profile <path>      Write CPU profile to specified file.
-  --options <options>   Parameters for new window in text protocol format.
+  -h --help              Show this help.
+  -s --socket <socket>   Path to control socket.
+                          [default: /tmp/mainframe.sock]
+  --profile <path>       Write CPU profile to specified file.
+  --open-args <options>  Parameters for new window in text protocol format.
+  --font <path>          Font file to use.
+  --font-size <size>     Font size to use in points. [default: 14]
+  --font-dpi <dpi>       Screen DPI to render font for. [default: 72]
 `
 
 type Opts struct {
-	Socket  string
-	Command []string
+	Socket string `docopt:"--socket"`
 
-	Listen bool
-	Exec   bool
+	Listen bool `docopt:"listen"`
 
-	Options string
+	Font     string  `docopt:"--font"`
+	FontDPI  float64 `docopt:"--font-dpi"`
+	FontSize float64 `docopt:"--font-size"`
 
-	Profile string
+	Profile string `docopt:"--profile"`
+
+	Open     bool     `docopt:"open"`
+	OpenArgs string   `docopt:"--open-args"`
+	Command  []string `docopt:"<command>"`
 
 	Separator bool `docopt:"--"`
 }
@@ -86,13 +93,18 @@ func main() {
 	case opts.Listen:
 		listen(opts)
 
-	case opts.Exec:
-		execute(opts)
+	case opts.Open:
+		open(opts)
 	}
 }
 
 func listen(opts Opts) {
-	font, err := fonts.Load("resources/font/font.tar")
+	font, err := fonts.Load(
+		opts.Font,
+		fonts.FontDPI(opts.FontDPI),
+		fonts.FontSize(opts.FontSize),
+		fonts.FontHinting(true),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -131,7 +143,7 @@ func listen(opts Opts) {
 	}
 }
 
-func execute(opts Opts) {
+func open(opts Opts) {
 	connection, err := net.Dial("unix", opts.Socket)
 	if err != nil {
 		log.Fatal(err)
@@ -154,12 +166,13 @@ func execute(opts Opts) {
 
 	env := os.Environ()
 
+	// TODO: allow to pass file descriptor in --fd option.
 	syscall.Dup2(int(socket.Fd()), 3)
 	syscall.Exec(path, opts.Command, env)
 }
 
 func openWindow(opts Opts, connection net.Conn) error {
-	message, err := text.Parse(`open ` + opts.Options)
+	message, err := text.Parse(`open ` + opts.OpenArgs)
 	if err != nil {
 		return err
 	}
