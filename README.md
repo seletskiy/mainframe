@@ -96,6 +96,7 @@ Currently implemented:
 
 # See also
 
+* [ARCHITECTURE.md](ARCHITECTURE.md): overview of `mainframe` architecture;
 * [PROTOCOL.md](PROTOCOL.md): UNIX socket protocol format;
 * [COMMANDS.md](COMMANDS.md): commands which can be used to control `mainframe`;
 * [EVENTS.md](EVENTS.md): events that `mainframe` emits back to client;
